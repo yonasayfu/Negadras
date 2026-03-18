@@ -122,25 +122,25 @@ Do **not** start reviewers, judges, scores, AI, live dashboard, or archives yet.
 
 ### B1. Applicants
 
-* [ ] Create `applicants` migration
-* [ ] Add fields: `user_id`, `applicant_type`, `full_name`, `email`, `phone`, `bio`, `national_id_or_registration_ref`
-* [ ] Create Applicant model
-* [ ] Define relationship with `users`
-* [ ] Decide whether every presenter must have a user account
-* [ ] Create presenter profile page
-* [ ] Create presenter profile edit form
-* [ ] Add validation for unique email/phone if needed
-* [ ] Add policy so presenters only manage their own profile
+* [x] Create `applicants` migration
+* [x] Add fields: `user_id`, `applicant_type`, `full_name`, `email`, `phone`, `bio`, `national_id_or_registration_ref`
+* [x] Create Applicant model
+* [x] Define relationship with `users`
+* [x] Decide whether every presenter must have a user account
+* [x] Create presenter profile page
+* [x] Create presenter profile edit form
+* [x] Add validation for unique email/phone if needed
+* [x] Add policy so presenters only manage their own profile
 
 ### B2. Social Links
 
-* [ ] Create `social_links` migration
-* [ ] Add fields: `applicant_id`, `organization_id`, `platform`, `url`, `is_verified`
-* [ ] Create SocialLink model
-* [ ] Add one-to-many relationship from applicant
-* [ ] Add repeatable social link fields in form
-* [ ] Add URL validation
-* [ ] Support add/remove social links dynamically in Vue form
+* [x] Create `social_links` migration
+* [x] Add fields: `applicant_id`, `organization_id`, `platform`, `url`, `is_verified`
+* [x] Create SocialLink model
+* [x] Add one-to-many relationship from applicant
+* [x] Add repeatable social link fields in form
+* [x] Add URL validation
+* [x] Support add/remove social links dynamically in Vue form
 
 ---
 
@@ -379,7 +379,7 @@ Do not add later complex statuses yet.
 * [ ] Create request validation for season
 * [ ] Create request validation for stage
 * [ ] Create request validation for industry
-* [ ] Create request validation for applicant profile
+* [x] Create request validation for applicant profile
 * [ ] Create request validation for organization
 * [ ] Create request validation for submission
 * [ ] Create request validation for file upload
@@ -443,10 +443,10 @@ This is the order I recommend so you do not get blocked:
 
 ## Step 2
 
-* [ ] applicants
+* [x] applicants
 * [ ] organizations
 * [ ] team_members
-* [ ] social_links
+* [x] social_links
 
 ## Step 3
 
@@ -502,7 +502,7 @@ You can mark **Phase 1 complete** only when all of these are true:
 
 * [ ] active season can be created
 * [ ] stages and industries are manageable
-* [ ] presenter/applicant profile works
+* [x] presenter/applicant profile works
 * [ ] organization and team data works
 * [ ] submission draft and final submit flow works
 * [ ] file upload works securely

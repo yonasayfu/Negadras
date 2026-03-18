@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\Admin\ApplicantManagementController;
 use App\Http\Controllers\Admin\IndustryManagementController;
 use App\Http\Controllers\Admin\MediaManagementController;
 use App\Http\Controllers\Admin\NoteManagementController;
@@ -59,6 +60,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('admin/users', [UserManagementController::class, 'index'])
         ->middleware('permission:users.view')
         ->name('users.index');
+
+    Route::get('admin/applicants', [ApplicantManagementController::class, 'index'])
+        ->middleware('permission:applicants.view')
+        ->name('applicants.index');
+
+    Route::get('admin/applicants/{applicant}/edit', [ApplicantManagementController::class, 'edit'])
+        ->middleware('permission:applicants.view')
+        ->name('applicants.edit');
+
+    Route::put('admin/applicants/{applicant}', [ApplicantManagementController::class, 'update'])
+        ->middleware('permission:applicants.update')
+        ->name('applicants.update');
 
     Route::get('admin/seasons', [SeasonManagementController::class, 'index'])
         ->middleware('permission:seasons.view')

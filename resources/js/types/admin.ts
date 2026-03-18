@@ -81,6 +81,29 @@ export type ManagedIndustry = {
     createdAt: string | null;
 };
 
+export type ManagedApplicantSocialLink = {
+    platform: string;
+    url: string;
+    isVerified?: boolean;
+};
+
+export type ManagedApplicant = {
+    id: number;
+    userId: number;
+    linkedUserName: string | null;
+    linkedUserEmail: string | null;
+    fullName: string;
+    email: string;
+    phone: string | null;
+    applicantType: string;
+    applicantTypeLabel: string;
+    socialLinksCount: number;
+    createdAt: string | null;
+    bio?: string | null;
+    nationalIdOrRegistrationRef?: string | null;
+    socialLinks?: ManagedApplicantSocialLink[];
+};
+
 export type SelectOption = {
     value: string;
     label: string;

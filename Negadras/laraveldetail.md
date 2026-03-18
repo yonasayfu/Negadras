@@ -309,3 +309,288 @@ Why:
 3. Policies protect access independently from the sidebar.
 4. Inertia pages stay thin when the controller already prepares the data shape.
 5. RBAC becomes useful only when it is tied to real domain modules.
+
+## Entry 002: Phase N1 Step 2 - Applicant and Presenter Foundation
+
+### Scope
+
+This batch implemented the presenter-owned profile layer for Negadras:
+
+- applicants
+- social links
+- presenter self-service profile rules
+- admin applicant management
+
+The goal was to make presenter identity a first-class business record before organizations and submissions are introduced.
+
+### Files and why they changed
+
+#### [app/ApplicantType.php](/Users/yonassayfu/Herd/Negadras/app/ApplicantType.php)
+
+Before:
+
+```diff
+- file did not exist
+```
+
+After:
+
+```diff
++ enum ApplicantType: string
++ case Individual = 'individual';
++ case Team = 'team';
++ case Organization = 'organization';
+```
+
+Why:
+
+- Presenter type is domain data, not a free-text field.
+- Submissions and organizations will later depend on whether the presenter acts as an individual, team, or organization.
+
+#### [database/migrations/2026_03_18_201627_create_applicants_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_18_201627_create_applicants_table.php)
+
+Key additions:
+
+```diff
++ $table->foreignId('user_id')->unique()->constrained()->cascadeOnDelete();
++ $table->string('applicant_type')->default(ApplicantType::Individual->value);
++ $table->string('full_name');
++ $table->string('email')->unique();
++ $table->string('phone', 30)->nullable()->unique();
++ $table->text('bio')->nullable();
++ $table->string('national_id_or_registration_ref')->nullable();
+```
+
+Why:
+
+- The project decision is now explicit: every presenter profile belongs to a real user account.
+- `user_id` is unique so one signed-in user owns one presenter profile.
+- Email and phone uniqueness prevent duplicate presenter identity records.
+
+#### [database/migrations/2026_03_18_201627_create_social_links_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_18_201627_create_social_links_table.php)
+
+Key additions:
+
+```diff
++ $table->foreignId('applicant_id')->nullable()->constrained()->cascadeOnDelete();
++ $table->unsignedBigInteger('organization_id')->nullable();
++ $table->string('platform');
++ $table->string('url', 2048);
++ $table->boolean('is_verified')->default(false);
+```
+
+Why:
+
+- Social links need to work for presenter profiles now and organization profiles later.
+- `is_verified` is included early so operations staff can verify links without another schema rewrite.
+
+#### Models
+
+- [Applicant.php](/Users/yonassayfu/Herd/Negadras/app/Models/Applicant.php)
+- [SocialLink.php](/Users/yonassayfu/Herd/Negadras/app/Models/SocialLink.php)
+- [User.php](/Users/yonassayfu/Herd/Negadras/app/Models/User.php)
+
+What changed:
+
+```diff
++ Applicant belongsTo user()
++ Applicant hasMany socialLinks()
++ SocialLink belongsTo applicant()
++ User hasOne applicant()
++ applicant_type is cast to ApplicantType
+```
+
+Why:
+
+- This turns presenter profiles into a real relationship graph instead of scattered profile fields on `users`.
+- Future organizations, teams, and submissions can now reference `applicants` cleanly.
+
+#### [app/Support/ApplicantProfileWriter.php](/Users/yonassayfu/Herd/Negadras/app/Support/ApplicantProfileWriter.php)
+
+Before:
+
+```diff
+- file did not exist
+```
+
+After:
+
+```diff
++ sync(Applicant $applicant, array $validated): Applicant
++ fill applicant fields
++ replace social links from validated payload
++ preserve verification flag when admin sends it
+```
+
+Why:
+
+- The same write logic is needed in two places:
+  - presenter self-service profile editing
+  - admin applicant management
+- Putting it in one service prevents controller duplication and keeps social-link sync rules consistent.
+
+#### Requests
+
+- [UpdateApplicantProfileRequest.php](/Users/yonassayfu/Herd/Negadras/app/Http/Requests/Settings/UpdateApplicantProfileRequest.php)
+- [UpdateApplicantRequest.php](/Users/yonassayfu/Herd/Negadras/app/Http/Requests/Admin/UpdateApplicantRequest.php)
+
+Important rule change:
+
+```diff
+- Rule::unique('applicants', 'email')->ignore($this->user()?->applicant?->id)
++ $applicantId = Applicant::query()->where('user_id', $this->user()?->id)->value('id');
++ Rule::unique('applicants', 'email')->ignore($applicantId)
+```
+
+Why:
+
+- The self-service request failed on the second update because validation was implicitly depending on the authenticated user's relation state.
+- Resolving the current applicant id directly from the database makes the unique ignore rule stable across repeated updates.
+
+Other important behavior:
+
+```diff
++ prepareForValidation() filters empty social link rows
++ social_links.*.url uses url:http,https
++ self-service flow forces is_verified = false
++ admin flow accepts social_links.*.is_verified
+```
+
+Why:
+
+- Presenters can manage their own links, but they cannot mark them as verified.
+- That is an operations/admin responsibility.
+
+#### Policies
+
+- [ApplicantPolicy.php](/Users/yonassayfu/Herd/Negadras/app/Policies/ApplicantPolicy.php)
+- [AppServiceProvider.php](/Users/yonassayfu/Herd/Negadras/app/Providers/AppServiceProvider.php)
+
+Core rule:
+
+```diff
++ return $user->can('applicants.update') || $applicant->user_id === $user->id;
+```
+
+Why:
+
+- Presenters need to manage only their own profile.
+- Managers and admins need broader access for operations.
+- This is the first Negadras-specific ownership rule beyond generic RBAC.
+
+#### Controllers
+
+- [ApplicantProfileController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Settings/ApplicantProfileController.php)
+- [ApplicantManagementController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/ApplicantManagementController.php)
+
+What they now do:
+
+- presenter self-service page under settings
+- create profile on first save if none exists
+- update existing profile on later saves
+- admin list/search/edit applicants
+- verify social links from the admin edit page
+- write activity-log events for profile creation and update
+
+Why:
+
+- This gives Negadras both sides of the workflow:
+  - presenter-owned profile maintenance
+  - operations-side oversight and correction
+
+#### [routes/settings.php](/Users/yonassayfu/Herd/Negadras/routes/settings.php)
+
+What changed:
+
+```diff
++ Route::get('applicant-profile', ...)
++ Route::put('applicant-profile', ...)
+```
+
+Why:
+
+- Presenter profile belongs in the signed-in settings area, not the admin module.
+- This keeps ownership flows separate from staff operations.
+
+#### [routes/web.php](/Users/yonassayfu/Herd/Negadras/routes/web.php)
+
+What changed:
+
+```diff
++ applicants.index
++ applicants.edit
++ applicants.update
+```
+
+Why:
+
+- Operations staff need a dedicated applicant management surface.
+- These routes are still permission-gated so presenter self-service and admin oversight do not blur together.
+
+#### Frontend pages and component
+
+- [resources/js/pages/settings/ApplicantProfile.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/settings/ApplicantProfile.vue)
+- [resources/js/pages/admin/Applicants/Edit.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/Applicants/Edit.vue)
+- [resources/js/pages/admin/Applicants/Index.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/Applicants/Index.vue)
+- [resources/js/components/applicants/SocialLinksFields.vue](/Users/yonassayfu/Herd/Negadras/resources/js/components/applicants/SocialLinksFields.vue)
+
+Why:
+
+- `ApplicantProfile.vue` gives the presenter a real profile page inside settings.
+- `SocialLinksFields.vue` prevents duplicate Vue logic between presenter and admin forms.
+- The admin pages expose search, editing, and verification without creating a separate social-links module.
+
+#### Navigation
+
+- [resources/js/layouts/settings/Layout.vue](/Users/yonassayfu/Herd/Negadras/resources/js/layouts/settings/Layout.vue)
+- [resources/js/navigation/app.ts](/Users/yonassayfu/Herd/Negadras/resources/js/navigation/app.ts)
+
+What changed:
+
+```diff
++ Presenter Profile in settings navigation
++ Applicants in admin navigation
+```
+
+Why:
+
+- The UI now reflects the two distinct ownership models:
+  - presenter self-management
+  - staff management
+
+#### Permissions
+
+- [database/seeders/RolePermissionSeeder.php](/Users/yonassayfu/Herd/Negadras/database/seeders/RolePermissionSeeder.php)
+- [app/Http/Controllers/Admin/RoleManagementController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/RoleManagementController.php)
+
+What changed:
+
+```diff
++ applicants.view
++ applicants.create
++ applicants.update
++ applicants.delete
+```
+
+Why:
+
+- Applicant management is now a first-class Negadras domain permission set.
+- Manager can inspect and update applicants.
+- Presenter self-management remains policy-based through ownership.
+
+#### Tests
+
+- [tests/Feature/ApplicantProfileTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/ApplicantProfileTest.php)
+- [tests/Feature/Admin/ApplicantManagementTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/Admin/ApplicantManagementTest.php)
+
+What they prove:
+
+- a signed-in user can open the presenter profile page
+- a signed-in user can create and later update their own applicant profile
+- social links persist and resync correctly
+- a manager can inspect and update applicants
+- a member cannot use applicant admin routes
+
+### Laravel tip from this phase
+
+For self-service forms that update a related record, avoid depending on an implicitly loaded relation inside unique validation. Resolve the current model id directly from the database and ignore that id explicitly. It is more stable under repeated requests and makes the rule easier to reason about.

@@ -7,6 +7,7 @@ import {
     FileSpreadsheet,
     FileText,
     FolderOpen,
+    IdCard,
     LayoutGrid,
     Settings2,
     Shield,
@@ -17,6 +18,7 @@ import {
 import { index as activityLogsIndex } from '@/routes/activity-logs';
 import { edit as adminSettingsEdit } from '@/routes/admin-settings';
 import { dashboard } from '@/routes';
+import { index as applicantsIndex } from '@/routes/applicants';
 import { index as exportsIndex } from '@/routes/exports';
 import { index as handbookIndex } from '@/routes/handbook';
 import { index as industriesIndex } from '@/routes/industries';
@@ -74,6 +76,12 @@ export const appNavigation: NavGroup[] = [
     {
         title: 'Management',
         items: [
+            {
+                title: 'Applicants',
+                href: applicantsIndex(),
+                icon: IdCard,
+                permission: 'applicants.view',
+            },
             {
                 title: 'Seasons',
                 href: seasonsIndex(),

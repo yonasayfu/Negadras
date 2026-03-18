@@ -95,8 +95,9 @@ Learning/reference archive:
 
 Current progress:
 
-- competition structure foundation in progress
-- seasons, stages, and industries are the active first delivery slice
+- competition structure foundation completed
+- applicant and presenter foundation completed
+- seasons, stages, industries, applicants, and social links are now in place
 
 ### Phase N2: Operational Workflow
 

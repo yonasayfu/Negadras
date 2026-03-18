@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\Applicant;
 use App\Models\Industry;
 use App\Models\Media;
 use App\Models\Note;
@@ -10,6 +11,7 @@ use App\Models\Season;
 use App\Models\Setting;
 use App\Models\Stage;
 use App\Models\User;
+use App\Policies\ApplicantPolicy;
 use App\Policies\IndustryPolicy;
 use App\Policies\MediaPolicy;
 use App\Policies\NotePolicy;
@@ -57,6 +59,7 @@ class AppServiceProvider extends ServiceProvider
         Date::use(CarbonImmutable::class);
 
         Gate::policy(User::class, UserPolicy::class);
+        Gate::policy(Applicant::class, ApplicantPolicy::class);
         Gate::policy(Media::class, MediaPolicy::class);
         Gate::policy(Industry::class, IndustryPolicy::class);
         Gate::policy(Page::class, PagePolicy::class);

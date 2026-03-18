@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Settings\ApplicantProfileController;
+use App\Http\Controllers\Settings\OrganizationProfileController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SecurityController;
 use Illuminate\Support\Facades\Route;
@@ -12,6 +13,8 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::get('settings/applicant-profile', [ApplicantProfileController::class, 'edit'])->name('applicant-profile.edit');
     Route::put('settings/applicant-profile', [ApplicantProfileController::class, 'update'])->name('applicant-profile.update');
+    Route::get('settings/organization-profile', [OrganizationProfileController::class, 'edit'])->name('organization-profile.edit');
+    Route::put('settings/organization-profile', [OrganizationProfileController::class, 'update'])->name('organization-profile.update');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {

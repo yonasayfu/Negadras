@@ -2,6 +2,7 @@ import {
     Bell,
     BriefcaseBusiness,
     BookOpenText,
+    Building2,
     CalendarRange,
     FileOutput,
     FileSpreadsheet,
@@ -24,6 +25,7 @@ import { index as handbookIndex } from '@/routes/handbook';
 import { index as industriesIndex } from '@/routes/industries';
 import { index as mediaIndex } from '@/routes/media';
 import { index as notificationsIndex } from '@/routes/notifications';
+import { index as organizationsIndex } from '@/routes/organizations';
 import { index as pagesIndex } from '@/routes/pages';
 import { index as reportsIndex } from '@/routes/reports';
 import { index as rolesIndex } from '@/routes/roles';
@@ -81,6 +83,12 @@ export const appNavigation: NavGroup[] = [
                 href: applicantsIndex(),
                 icon: IdCard,
                 permission: 'applicants.view',
+            },
+            {
+                title: 'Organizations',
+                href: organizationsIndex(),
+                icon: Building2,
+                permission: 'organizations.view',
             },
             {
                 title: 'Seasons',

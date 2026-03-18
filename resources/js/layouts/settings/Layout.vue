@@ -6,6 +6,7 @@ import { Separator } from '@/components/ui/separator';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { toUrl } from '@/lib/utils';
 import { edit as editApplicantProfile } from '@/routes/applicant-profile';
+import { edit as editOrganizationProfile } from '@/routes/organization-profile';
 import { edit as editAppearance } from '@/routes/appearance';
 import { edit as editProfile } from '@/routes/profile';
 import { edit as editSecurity } from '@/routes/security';
@@ -19,6 +20,10 @@ const sidebarNavItems: NavItem[] = [
     {
         title: 'Presenter Profile',
         href: editApplicantProfile(),
+    },
+    {
+        title: 'Organization Profile',
+        href: editOrganizationProfile(),
     },
     {
         title: 'Security',

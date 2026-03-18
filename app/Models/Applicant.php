@@ -46,4 +46,9 @@ class Applicant extends Model
     {
         return $this->hasMany(SocialLink::class)->orderBy('platform');
     }
+
+    public function teamMemberships(): HasMany
+    {
+        return $this->hasMany(TeamMember::class)->orderByDesc('is_primary_contact');
+    }
 }

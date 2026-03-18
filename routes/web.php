@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\ApplicantManagementController;
 use App\Http\Controllers\Admin\IndustryManagementController;
 use App\Http\Controllers\Admin\MediaManagementController;
 use App\Http\Controllers\Admin\NoteManagementController;
+use App\Http\Controllers\Admin\OrganizationManagementController;
 use App\Http\Controllers\Admin\PageImportController;
 use App\Http\Controllers\Admin\PageManagementController;
 use App\Http\Controllers\Admin\RoleManagementController;
@@ -72,6 +73,30 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('admin/applicants/{applicant}', [ApplicantManagementController::class, 'update'])
         ->middleware('permission:applicants.update')
         ->name('applicants.update');
+
+    Route::get('admin/organizations', [OrganizationManagementController::class, 'index'])
+        ->middleware('permission:organizations.view')
+        ->name('organizations.index');
+
+    Route::get('admin/organizations/create', [OrganizationManagementController::class, 'create'])
+        ->middleware('permission:organizations.create')
+        ->name('organizations.create');
+
+    Route::post('admin/organizations', [OrganizationManagementController::class, 'store'])
+        ->middleware('permission:organizations.create')
+        ->name('organizations.store');
+
+    Route::get('admin/organizations/{organization}/edit', [OrganizationManagementController::class, 'edit'])
+        ->middleware('permission:organizations.view')
+        ->name('organizations.edit');
+
+    Route::put('admin/organizations/{organization}', [OrganizationManagementController::class, 'update'])
+        ->middleware('permission:organizations.update')
+        ->name('organizations.update');
+
+    Route::delete('admin/organizations/{organization}', [OrganizationManagementController::class, 'destroy'])
+        ->middleware('permission:organizations.delete')
+        ->name('organizations.destroy');
 
     Route::get('admin/seasons', [SeasonManagementController::class, 'index'])
         ->middleware('permission:seasons.view')

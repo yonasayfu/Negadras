@@ -594,3 +594,505 @@ What they prove:
 ### Laravel tip from this phase
 
 For self-service forms that update a related record, avoid depending on an implicitly loaded relation inside unique validation. Resolve the current model id directly from the database and ignore that id explicitly. It is more stable under repeated requests and makes the rule easier to reason about.
+
+## Entry 003: Phase N1 Step 3 - Organization and Team Foundation
+
+### Scope
+
+This batch implemented the company or startup layer that sits between presenter profiles and future submissions:
+
+- organizations
+- team members
+- presenter-owned organization profile
+- admin organization management
+- logo upload through the shared media system
+- one-primary-contact rule
+
+This phase matters because later submissions should be able to point to either:
+
+- an individual presenter only
+- or an organization with a real team structure
+
+The business decision now recorded in the tracker is:
+
+- organization is optional for future submissions
+- individual presenters remain valid
+- if an organization exists, it must have exactly one primary contact
+
+### Architecture decision
+
+I did **not** create a separate file-upload system for organization logos.
+
+Instead, the organization logo is attached through the shared `Media` model that already exists in the business starter. That keeps files, audit, and future reuse aligned with the starter architecture.
+
+### File-by-file breakdown
+
+#### [database/migrations/2026_03_18_204801_create_organizations_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_18_204801_create_organizations_table.php)
+
+Before:
+
+```diff
+- organizations table only had id and timestamps
+```
+
+After:
+
+```diff
++ $table->string('legal_name');
++ $table->string('display_name');
++ $table->string('registration_number')->nullable()->unique();
++ $table->foreignIdFor(Industry::class)->nullable()->constrained()->nullOnDelete();
++ $table->string('website')->nullable();
++ $table->text('description')->nullable();
++ $table->string('contact_email')->nullable();
++ $table->string('contact_phone', 30)->nullable();
++ $table->string('logo_path')->nullable();
++ $table->text('address')->nullable();
+```
+
+Why:
+
+- `legal_name` and `display_name` are intentionally separate.
+  - legal name is the official record
+  - display name is what future public surfaces and event screens can show
+- `industry_id` connects the organization to the Negadras competition taxonomy
+- `logo_path` is kept as a convenience pointer even though the actual file is managed by `media`
+
+#### [database/migrations/2026_03_18_204801_create_team_members_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_18_204801_create_team_members_table.php)
+
+Before:
+
+```diff
+- team_members table only had id and timestamps
+```
+
+After:
+
+```diff
++ $table->foreignIdFor(Organization::class)->constrained()->cascadeOnDelete();
++ $table->foreignIdFor(Applicant::class)->nullable()->constrained()->nullOnDelete();
++ $table->string('full_name');
++ $table->string('role_title');
++ $table->string('email')->nullable();
++ $table->string('phone', 30)->nullable();
++ $table->text('bio')->nullable();
++ $table->boolean('is_primary_contact')->default(false);
++ $table->index(['organization_id', 'is_primary_contact']);
+```
+
+Why:
+
+- `organization_id` makes team members a child record of one organization
+- `applicant_id` is nullable because not every teammate needs a linked system account in Phase 1
+- `is_primary_contact` is the ownership anchor for presenter-managed organizations
+
+The key design is:
+
+```diff
++ presenter ownership is inferred through the primary team member linked to the current applicant
+```
+
+That avoids storing a second conflicting owner field on `organizations`.
+
+#### [app/Models/Organization.php](/Users/yonassayfu/Herd/Negadras/app/Models/Organization.php)
+
+What changed:
+
+```diff
++ fillable organization profile fields
++ industry(): BelongsTo
++ teamMembers(): HasMany
++ primaryContact(): HasOne where is_primary_contact = true
++ media(): MorphMany
++ logo(): MorphOne filtered to collection = organization-logo
++ notes(): MorphMany
++ isManagedBy(User $user): bool
+```
+
+Why:
+
+- `primaryContact()` gives one clear record for ownership and later notifications
+- `logo()` avoids scanning all files manually
+- `isManagedBy()` keeps the ownership rule close to the model instead of scattering it across controllers
+
+Important code shape:
+
+```php
+public function isManagedBy(User $user): bool
+{
+    $applicantId = $user->applicant?->id;
+
+    if ($applicantId === null) {
+        return false;
+    }
+
+    return $this->teamMembers()
+        ->where('applicant_id', $applicantId)
+        ->where('is_primary_contact', true)
+        ->exists();
+}
+```
+
+This is the rule that makes presenter-owned organization editing safe.
+
+#### [app/Models/TeamMember.php](/Users/yonassayfu/Herd/Negadras/app/Models/TeamMember.php)
+
+What changed:
+
+```diff
++ fillable team member fields
++ cast is_primary_contact => boolean
++ organization(): BelongsTo
++ applicant(): BelongsTo
+```
+
+Why:
+
+- Team members are not just form rows; they are first-class records
+- Linking a member to an `Applicant` lets future phases reuse presenter identities across organizations, submissions, feedback, and sessions
+
+#### [app/Support/MediaUploader.php](/Users/yonassayfu/Herd/Negadras/app/Support/MediaUploader.php)
+
+Before:
+
+```diff
+- store(UploadedFile $file, User $user, string $collection = 'library', string $disk = 'local')
+```
+
+After:
+
+```diff
++ store(
++     UploadedFile $file,
++     User $user,
++     string $collection = 'library',
++     string $disk = 'local',
++     ?Model $attachable = null,
++     array $metadata = [],
++ )
+```
+
+Why:
+
+- The shared uploader needed to become attachable-aware so organization logos could use the same file pipeline as the rest of the business starter
+- This keeps the boilerplate clean:
+  - one upload service
+  - one media table
+  - one storage policy
+
+Important code shape:
+
+```php
+'attachable_type' => $attachable?->getMorphClass(),
+'attachable_id' => $attachable?->getKey(),
+```
+
+That is what makes the organization logo a real morph-attached media record.
+
+#### [app/Support/OrganizationProfileWriter.php](/Users/yonassayfu/Herd/Negadras/app/Support/OrganizationProfileWriter.php)
+
+This file is the core of the phase.
+
+Before:
+
+```diff
+- file did not exist
+```
+
+After:
+
+```diff
++ sync(
++     Organization $organization,
++     array $validated,
++     User $actor,
++     ?Applicant $ownerApplicant = null,
++     bool $preserveApplicantLinks = false,
++     ?UploadedFile $logo = null,
++ ): Organization
+```
+
+Why this service exists:
+
+- presenter self-service and admin management both update the same organization structure
+- team members and logo replacement are multi-step operations
+- that logic does not belong duplicated in two controllers
+
+Important behavior inside the writer:
+
+```php
+if ((bool) $memberData['is_primary_contact'] && $ownerApplicant !== null) {
+    $applicantId = $ownerApplicant->id;
+} elseif ($preserveApplicantLinks && $teamMember->exists) {
+    $applicantId = $teamMember->applicant_id;
+}
+```
+
+Why:
+
+- in self-service mode, the current presenter becomes the linked applicant for the primary contact
+- in admin mode, existing applicant links are preserved instead of being destroyed by an unrelated staff edit
+
+Logo replacement behavior:
+
+```php
+$existingLogo = $organization->logo;
+
+if ($existingLogo !== null) {
+    Storage::disk($existingLogo->disk)->delete($existingLogo->path);
+    $existingLogo->delete();
+}
+```
+
+Why:
+
+- uploading a new logo should replace the old one cleanly
+- otherwise the media table and storage disk would accumulate stale organization logos
+
+#### Requests
+
+- [StoreOrganizationRequest.php](/Users/yonassayfu/Herd/Negadras/app/Http/Requests/Admin/StoreOrganizationRequest.php)
+- [UpdateOrganizationRequest.php](/Users/yonassayfu/Herd/Negadras/app/Http/Requests/Admin/UpdateOrganizationRequest.php)
+- [UpdateOrganizationProfileRequest.php](/Users/yonassayfu/Herd/Negadras/app/Http/Requests/Settings/UpdateOrganizationProfileRequest.php)
+
+These files now own the primary-contact rule.
+
+Important validation pattern:
+
+```php
+$primaryContacts = collect($this->input('team_members', []))
+    ->filter(fn (array $member): bool => (bool) ($member['is_primary_contact'] ?? false))
+    ->count();
+
+if ($primaryContacts !== 1) {
+    $validator->errors()->add('team_members', 'Exactly one primary contact is required.');
+}
+```
+
+Why:
+
+- this rule is business logic, not UI decoration
+- Vue can help the user, but Laravel must enforce the final invariant
+
+The settings request also adds a presenter-specific rule:
+
+```php
+if (($primaryMember['email'] ?? null) !== null && $primaryMember['email'] !== $applicant->email) {
+    $validator->errors()->add('team_members.'.$primaryIndex.'.email', 'Primary contact email must match your presenter profile.');
+}
+```
+
+Why:
+
+- the presenter-owned organization must stay anchored to the real signed-in presenter identity
+
+#### [app/Policies/OrganizationPolicy.php](/Users/yonassayfu/Herd/Negadras/app/Policies/OrganizationPolicy.php)
+
+Core rule:
+
+```diff
++ return $user->can('organizations.update') || $organization->isManagedBy($user);
+```
+
+Why:
+
+- admins and managers need broad operations access
+- presenters need narrow ownership-based access
+- the policy unifies both without separate route trees pretending to be secure
+
+#### [app/Http/Controllers/Settings/OrganizationProfileController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Settings/OrganizationProfileController.php)
+
+This is the presenter-facing entry point.
+
+Key rule:
+
+```php
+if ($applicant === null) {
+    return to_route('applicant-profile.edit')->with('error', 'Create your presenter profile before creating an organization.');
+}
+```
+
+Why:
+
+- organization ownership depends on the presenter profile existing first
+- that makes Phase 1 dependency order explicit in code
+
+This controller also pre-seeds the form from the presenter profile when no organization exists yet. That reduces duplicate data entry and keeps the primary contact aligned with the presenter.
+
+#### [app/Http/Controllers/Admin/OrganizationManagementController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/OrganizationManagementController.php)
+
+This is the staff-facing entry point.
+
+What it now does:
+
+- organizations index with search
+- create page
+- edit page
+- update and delete
+- industry option loading
+- team-member summaries
+- logo download link exposure
+
+Search shape:
+
+```php
+->where('legal_name', 'ilike', "%{$search}%")
+->orWhere('display_name', 'ilike', "%{$search}%")
+->orWhere('registration_number', 'ilike', "%{$search}%")
+->orWhere('contact_email', 'ilike', "%{$search}%");
+```
+
+Why:
+
+- operations staff need organization lookup by both formal and informal identifiers
+
+#### [routes/settings.php](/Users/yonassayfu/Herd/Negadras/routes/settings.php)
+
+New routes:
+
+```diff
++ settings/organization-profile
++ organization-profile.edit
++ organization-profile.update
+```
+
+Why:
+
+- organization profile belongs in the signed-in presenter settings area
+- it is not an admin-only object
+
+#### [routes/web.php](/Users/yonassayfu/Herd/Negadras/routes/web.php)
+
+New admin routes:
+
+```diff
++ organizations.index
++ organizations.create
++ organizations.store
++ organizations.edit
++ organizations.update
++ organizations.destroy
+```
+
+Why:
+
+- staff still need full operational visibility and correction tools
+- presenter ownership and admin oversight now exist side by side
+
+#### Frontend component
+
+- [resources/js/components/organizations/TeamMembersFields.vue](/Users/yonassayfu/Herd/Negadras/resources/js/components/organizations/TeamMembersFields.vue)
+
+Why it matters:
+
+- it centralizes the repeatable row logic for team members
+- it prevents the presenter page and admin pages from drifting into different field behavior
+
+Important UI behavior:
+
+```diff
++ add/remove rows
++ primary-contact checkbox
++ per-row validation messages
++ linked applicant name display when available
+```
+
+#### Frontend pages
+
+- [resources/js/pages/settings/OrganizationProfile.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/settings/OrganizationProfile.vue)
+- [resources/js/pages/admin/Organizations/Index.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/Organizations/Index.vue)
+- [resources/js/pages/admin/Organizations/Create.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/Organizations/Create.vue)
+- [resources/js/pages/admin/Organizations/Edit.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/Organizations/Edit.vue)
+
+What these pages demonstrate:
+
+- self-service presenter profile for organizations
+- admin CRUD for organizations
+- logo upload through the shared upload field
+- repeatable team-member editing
+- one-primary-contact UX assistance before Laravel enforces the final rule
+
+Important frontend logic:
+
+```ts
+if (key === 'isPrimaryContact' && value === true) {
+    form.team_members = form.team_members.map((member, memberIndex) => ({
+        ...member,
+        isPrimaryContact: memberIndex === index,
+    }));
+}
+```
+
+Why:
+
+- the UI helps users keep one primary contact selected
+- the backend still validates it, so the rule is enforced twice:
+  - once for usability
+  - once for integrity
+
+#### Navigation and settings shell
+
+- [resources/js/navigation/app.ts](/Users/yonassayfu/Herd/Negadras/resources/js/navigation/app.ts)
+- [resources/js/layouts/settings/Layout.vue](/Users/yonassayfu/Herd/Negadras/resources/js/layouts/settings/Layout.vue)
+
+What changed:
+
+```diff
++ Organizations in admin navigation
++ Organization Profile in settings navigation
+```
+
+Why:
+
+- organizations now exist as both:
+  - a presenter-owned business object
+  - an admin-managed operational record
+
+#### Permissions and policy registration
+
+- [database/seeders/RolePermissionSeeder.php](/Users/yonassayfu/Herd/Negadras/database/seeders/RolePermissionSeeder.php)
+- [app/Http/Controllers/Admin/RoleManagementController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/RoleManagementController.php)
+- [app/Providers/AppServiceProvider.php](/Users/yonassayfu/Herd/Negadras/app/Providers/AppServiceProvider.php)
+
+What changed:
+
+```diff
++ organizations.view
++ organizations.create
++ organizations.update
++ organizations.delete
++ Gate::policy(Organization::class, OrganizationPolicy::class)
+```
+
+Why:
+
+- organization management is now a first-class Negadras capability
+- managers can operate it
+- presenters can only touch their own organization through policy ownership rules
+
+#### Tests
+
+- [tests/Feature/OrganizationProfileTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/OrganizationProfileTest.php)
+- [tests/Feature/Admin/OrganizationManagementTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/Admin/OrganizationManagementTest.php)
+
+What they prove:
+
+- a presenter with an applicant profile can open the organization profile page
+- a presenter can create an organization with logo and team members
+- exactly one primary contact is required
+- a manager can view the organizations index
+- a manager can update organization details and replace the logo
+- a member cannot access organization admin routes
+
+### Laravel takeaways from this phase
+
+1. Use a writer/service when one business object is edited from both self-service and admin flows.
+2. Put ownership logic in the model or policy, not in the Vue page.
+3. Reuse polymorphic media instead of creating one-off file columns and controllers.
+4. Enforce business invariants twice:
+   - assist the user in the frontend
+   - enforce the rule in Laravel validation
+5. Keep Phase 1 dependencies explicit in code:
+   - presenter profile first
+   - organization profile second
+   - submission layer later

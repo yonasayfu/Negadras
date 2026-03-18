@@ -148,24 +148,24 @@ Do **not** start reviewers, judges, scores, AI, live dashboard, or archives yet.
 
 ### C1. Organizations
 
-* [ ] Create `organizations` migration
-* [ ] Add fields: `legal_name`, `display_name`, `registration_number`, `industry_id`, `website`, `description`, `contact_email`, `contact_phone`, `logo_path`, `address`
-* [ ] Create Organization model
-* [ ] Define relationship with industry
-* [ ] Create organization create/edit UI
-* [ ] Add logo upload support
-* [ ] Add validation rules
-* [ ] Decide whether organization is optional or required per submission
+* [x] Create `organizations` migration
+* [x] Add fields: `legal_name`, `display_name`, `registration_number`, `industry_id`, `website`, `description`, `contact_email`, `contact_phone`, `logo_path`, `address`
+* [x] Create Organization model
+* [x] Define relationship with industry
+* [x] Create organization create/edit UI
+* [x] Add logo upload support
+* [x] Add validation rules
+* [x] Decide whether organization is optional or required per submission
 
 ### C2. Team Members
 
-* [ ] Create `team_members` migration
-* [ ] Add fields: `organization_id`, `applicant_id`, `full_name`, `role_title`, `email`, `phone`, `bio`, `is_primary_contact`
-* [ ] Create TeamMember model
-* [ ] Add repeatable team member form section
-* [ ] Add one primary contact validation rule
-* [ ] Add edit/delete UI for team members
-* [ ] Show team members on organization detail page
+* [x] Create `team_members` migration
+* [x] Add fields: `organization_id`, `applicant_id`, `full_name`, `role_title`, `email`, `phone`, `bio`, `is_primary_contact`
+* [x] Create TeamMember model
+* [x] Add repeatable team member form section
+* [x] Add one primary contact validation rule
+* [x] Add edit/delete UI for team members
+* [x] Show team members on organization detail page
 
 ---
 
@@ -444,8 +444,8 @@ This is the order I recommend so you do not get blocked:
 ## Step 2
 
 * [x] applicants
-* [ ] organizations
-* [ ] team_members
+* [x] organizations
+* [x] team_members
 * [x] social_links
 
 ## Step 3
@@ -486,7 +486,7 @@ This is the order I recommend so you do not get blocked:
 You said before you like roadmap-style development, so here are useful commit milestone ideas:
 
 * [ ] `init negadras competition structure module`
-* [ ] `add applicant organization and team management`
+* [x] `add applicant organization and team management`
 * [ ] `build negadras submission draft and final submit flow`
 * [ ] `implement submission file upload and secure access`
 * [ ] `add submission versioning and status history`
@@ -503,7 +503,7 @@ You can mark **Phase 1 complete** only when all of these are true:
 * [ ] active season can be created
 * [ ] stages and industries are manageable
 * [x] presenter/applicant profile works
-* [ ] organization and team data works
+* [x] organization and team data works
 * [ ] submission draft and final submit flow works
 * [ ] file upload works securely
 * [ ] status history is tracked

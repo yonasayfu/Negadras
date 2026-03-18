@@ -104,6 +104,38 @@ export type ManagedApplicant = {
     socialLinks?: ManagedApplicantSocialLink[];
 };
 
+export type ManagedTeamMember = {
+    id: number | null;
+    applicantId: number | null;
+    fullName: string;
+    roleTitle: string;
+    email: string | null;
+    phone: string | null;
+    bio: string | null;
+    isPrimaryContact: boolean;
+    linkedApplicantName?: string | null;
+};
+
+export type ManagedOrganization = {
+    id?: number;
+    legalName: string;
+    displayName: string;
+    registrationNumber: string | null;
+    industryId?: number | null;
+    industryName?: string | null;
+    website: string | null;
+    description?: string | null;
+    contactEmail: string | null;
+    contactPhone: string | null;
+    address?: string | null;
+    logoFileName?: string | null;
+    logoDownloadUrl?: string | null;
+    teamMembersCount?: number;
+    primaryContactName?: string | null;
+    createdAt?: string | null;
+    teamMembers: ManagedTeamMember[];
+};
+
 export type SelectOption = {
     value: string;
     label: string;

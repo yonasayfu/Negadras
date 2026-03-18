@@ -93,6 +93,11 @@ Learning/reference archive:
 - score records
 - comments/feedback visibility rules
 
+Current progress:
+
+- competition structure foundation in progress
+- seasons, stages, and industries are the active first delivery slice
+
 ### Phase N2: Operational Workflow
 
 - application intake

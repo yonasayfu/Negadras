@@ -1,12 +1,15 @@
 <?php
 
 use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\Admin\IndustryManagementController;
 use App\Http\Controllers\Admin\MediaManagementController;
 use App\Http\Controllers\Admin\NoteManagementController;
 use App\Http\Controllers\Admin\PageImportController;
 use App\Http\Controllers\Admin\PageManagementController;
 use App\Http\Controllers\Admin\RoleManagementController;
+use App\Http\Controllers\Admin\SeasonManagementController;
 use App\Http\Controllers\Admin\SettingsManagementController;
+use App\Http\Controllers\Admin\StageManagementController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExportCenterController;
@@ -56,6 +59,98 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('admin/users', [UserManagementController::class, 'index'])
         ->middleware('permission:users.view')
         ->name('users.index');
+
+    Route::get('admin/seasons', [SeasonManagementController::class, 'index'])
+        ->middleware('permission:seasons.view')
+        ->name('seasons.index');
+
+    Route::get('admin/seasons/create', [SeasonManagementController::class, 'create'])
+        ->middleware('permission:seasons.create')
+        ->name('seasons.create');
+
+    Route::post('admin/seasons', [SeasonManagementController::class, 'store'])
+        ->middleware('permission:seasons.create')
+        ->name('seasons.store');
+
+    Route::get('admin/seasons/{season}/edit', [SeasonManagementController::class, 'edit'])
+        ->middleware('permission:seasons.update')
+        ->name('seasons.edit');
+
+    Route::put('admin/seasons/{season}', [SeasonManagementController::class, 'update'])
+        ->middleware('permission:seasons.update')
+        ->name('seasons.update');
+
+    Route::post('admin/seasons/{season}/activate', [SeasonManagementController::class, 'activate'])
+        ->middleware('permission:seasons.update')
+        ->name('seasons.activate');
+
+    Route::post('admin/seasons/{season}/close', [SeasonManagementController::class, 'close'])
+        ->middleware('permission:seasons.update')
+        ->name('seasons.close');
+
+    Route::delete('admin/seasons/{season}', [SeasonManagementController::class, 'destroy'])
+        ->middleware('permission:seasons.delete')
+        ->name('seasons.destroy');
+
+    Route::get('admin/stages', [StageManagementController::class, 'index'])
+        ->middleware('permission:stages.view')
+        ->name('stages.index');
+
+    Route::get('admin/stages/create', [StageManagementController::class, 'create'])
+        ->middleware('permission:stages.create')
+        ->name('stages.create');
+
+    Route::post('admin/stages', [StageManagementController::class, 'store'])
+        ->middleware('permission:stages.create')
+        ->name('stages.store');
+
+    Route::get('admin/stages/{stage}/edit', [StageManagementController::class, 'edit'])
+        ->middleware('permission:stages.update')
+        ->name('stages.edit');
+
+    Route::put('admin/stages/{stage}', [StageManagementController::class, 'update'])
+        ->middleware('permission:stages.update')
+        ->name('stages.update');
+
+    Route::post('admin/stages/{stage}/open', [StageManagementController::class, 'open'])
+        ->middleware('permission:stages.update')
+        ->name('stages.open');
+
+    Route::post('admin/stages/{stage}/close', [StageManagementController::class, 'close'])
+        ->middleware('permission:stages.update')
+        ->name('stages.close');
+
+    Route::delete('admin/stages/{stage}', [StageManagementController::class, 'destroy'])
+        ->middleware('permission:stages.delete')
+        ->name('stages.destroy');
+
+    Route::get('admin/industries', [IndustryManagementController::class, 'index'])
+        ->middleware('permission:industries.view')
+        ->name('industries.index');
+
+    Route::get('admin/industries/create', [IndustryManagementController::class, 'create'])
+        ->middleware('permission:industries.create')
+        ->name('industries.create');
+
+    Route::post('admin/industries', [IndustryManagementController::class, 'store'])
+        ->middleware('permission:industries.create')
+        ->name('industries.store');
+
+    Route::get('admin/industries/{industry}/edit', [IndustryManagementController::class, 'edit'])
+        ->middleware('permission:industries.update')
+        ->name('industries.edit');
+
+    Route::put('admin/industries/{industry}', [IndustryManagementController::class, 'update'])
+        ->middleware('permission:industries.update')
+        ->name('industries.update');
+
+    Route::post('admin/industries/{industry}/toggle', [IndustryManagementController::class, 'toggle'])
+        ->middleware('permission:industries.update')
+        ->name('industries.toggle');
+
+    Route::delete('admin/industries/{industry}', [IndustryManagementController::class, 'destroy'])
+        ->middleware('permission:industries.delete')
+        ->name('industries.destroy');
 
     Route::get('admin/pages', [PageManagementController::class, 'index'])
         ->middleware('permission:pages.view')

@@ -83,37 +83,37 @@ Do **not** start reviewers, judges, scores, AI, live dashboard, or archives yet.
 
 ### A1. Seasons
 
-* [ ] Create `seasons` migration
-* [ ] Add fields: `name`, `year`, `slug`, `status`, `registration_open_at`, `registration_close_at`, `description`
-* [ ] Create Season model
-* [ ] Create Season controller
-* [ ] Create admin season list page
-* [ ] Create season create form
-* [ ] Create season edit form
-* [ ] Add activate/deactivate season action
-* [ ] Add season validation rules
-* [ ] Add season policy/permission checks
+* [x] Create `seasons` migration
+* [x] Add fields: `name`, `year`, `slug`, `status`, `registration_open_at`, `registration_close_at`, `description`
+* [x] Create Season model
+* [x] Create Season controller
+* [x] Create admin season list page
+* [x] Create season create form
+* [x] Create season edit form
+* [x] Add activate/deactivate season action
+* [x] Add season validation rules
+* [x] Add season policy/permission checks
 
 ### A2. Stages
 
-* [ ] Create `stages` migration
-* [ ] Add fields: `season_id`, `name`, `code`, `type`, `order_index`, `starts_at`, `ends_at`, `status`, `is_live_stage`
-* [ ] Create Stage model
-* [ ] Define relationship: season has many stages
-* [ ] Create stage CRUD
+* [x] Create `stages` migration
+* [x] Add fields: `season_id`, `name`, `code`, `type`, `order_index`, `starts_at`, `ends_at`, `status`, `is_live_stage`
+* [x] Create Stage model
+* [x] Define relationship: season has many stages
+* [x] Create stage CRUD
 * [ ] Add reorder logic for stage order
-* [ ] Add validation to prevent duplicate stage code in same season
-* [ ] Add stage open/close UI action
-* [ ] Add permission checks
+* [x] Add validation to prevent duplicate stage code in same season
+* [x] Add stage open/close UI action
+* [x] Add permission checks
 
 ### A3. Industries / Categories
 
-* [ ] Create `industries` migration
-* [ ] Add fields: `name`, `slug`, `description`, `is_active`
-* [ ] Create Industry model
-* [ ] Create industry CRUD
-* [ ] Add list/search/filter for industries
-* [ ] Add enable/disable action
+* [x] Create `industries` migration
+* [x] Add fields: `name`, `slug`, `description`, `is_active`
+* [x] Create Industry model
+* [x] Create industry CRUD
+* [x] Add list/search/filter for industries
+* [x] Add enable/disable action
 * [ ] Add relationship usage in submission form
 
 ---

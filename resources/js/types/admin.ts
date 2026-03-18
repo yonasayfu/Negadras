@@ -40,6 +40,52 @@ export type ManagedPage = {
     notes?: ManagedNote[];
 };
 
+export type ManagedSeason = {
+    id: number;
+    name: string;
+    year: number;
+    slug: string;
+    status: string;
+    statusLabel: string;
+    statusTone: string;
+    registrationOpenAt: string | null;
+    registrationCloseAt: string | null;
+    description: string | null;
+    stagesCount: number;
+    createdAt: string | null;
+};
+
+export type ManagedStage = {
+    id: number;
+    seasonId: string;
+    seasonName: string | null;
+    name: string;
+    code: string;
+    type: string;
+    typeLabel: string;
+    orderIndex: number;
+    startsAt: string | null;
+    endsAt: string | null;
+    status: string;
+    statusLabel: string;
+    statusTone: string;
+    isLiveStage: boolean;
+};
+
+export type ManagedIndustry = {
+    id: number;
+    name: string;
+    slug: string;
+    description: string | null;
+    isActive: boolean;
+    createdAt: string | null;
+};
+
+export type SelectOption = {
+    value: string;
+    label: string;
+};
+
 export type ManagedImportRun = {
     id: number;
     fileName: string;

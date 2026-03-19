@@ -635,7 +635,7 @@ Add these entities:
 ### B2. Assignment Rules
 
 * [x] Prevent duplicate active reviewer assignment for same submission/reviewer/stage
-* [ ] Allow reassignment by manager/admin
+* [x] Allow reassignment by manager/admin
 * [x] Log assignment changes
 * [x] Notify reviewer on assignment
 
@@ -696,14 +696,14 @@ Add these entities:
 * [ ] Create `review_decisions` migration
 * [ ] Add fields: `submission_id`, `stage_id`, `decision_type`, `decision_reason`, `decided_by`, `decided_at`
 * [ ] Create ReviewDecision model
-* [ ] Add decision options:
+* [x] Add decision options:
 
-  * [ ] shortlisted
-  * [ ] rejected
-  * [ ] returned_for_revision
+  * [x] shortlisted
+  * [x] rejected
+  * [x] returned_for_revision
   * [ ] needs_more_review
-* [ ] Add decision service to update submission status
-* [ ] Log decision in status history
+* [x] Add decision service to update submission status
+* [x] Log decision in status history
 
 ### E2. Shortlist Records
 
@@ -743,30 +743,30 @@ Add these entities:
 
 ### G1. Queue Page
 
-* [ ] Create screening queue page for manager/admin
-* [ ] Show pending screening reviews
+* [x] Create screening queue page for manager/admin
+* [x] Show pending screening reviews
 * [ ] Show technical review status
-* [ ] Show submissions waiting for decision
-* [ ] Add filters by reviewer, stage, industry, recommendation
+* [x] Show submissions waiting for decision
+* [x] Add filters by reviewer, stage, industry, recommendation
 
 ### G2. Queue Actions
 
-* [ ] assign reviewer
-* [ ] reassign reviewer
-* [ ] view review details
-* [ ] make final screening decision
-* [ ] shortlist submission
-* [ ] reject submission
-* [ ] request revision
+* [x] assign reviewer
+* [x] reassign reviewer
+* [x] view review details
+* [x] make final screening decision
+* [x] shortlist submission
+* [x] reject submission
+* [x] request revision
 
 ---
 
 ## H. Notifications
 
 * [x] Notify reviewer on assignment
-* [ ] Notify manager on submitted review
-* [ ] Notify presenter when revision requested
-* [ ] Notify presenter on rejection or shortlist result
+* [x] Notify manager on submitted review
+* [x] Notify presenter when revision requested
+* [x] Notify presenter on rejection or shortlist result
 * [ ] Add in-app notifications for overdue reviews
 
 ---
@@ -776,8 +776,8 @@ Add these entities:
 * [x] Reviewer can only see assigned submissions
 * [x] Reviewer can submit screening review
 * [x] Reviewer can save draft review
-* [ ] Manager can shortlist based on reviews
-* [ ] Decision updates submission status
+* [x] Manager can shortlist based on reviews
+* [x] Decision updates submission status
 * [x] Duplicate assignment prevention works
 * [ ] Reviewer overdue state behaves correctly
 
@@ -788,8 +788,8 @@ Add these entities:
 * [x] reviewers exist as real users with workflow
 * [x] submissions can be assigned for screening
 * [x] reviews can be submitted and tracked
-* [ ] manager can make shortlist decisions
-* [ ] revision/rejection/shortlist outcomes are functional
+* [x] manager can make shortlist decisions
+* [x] revision/rejection/shortlist outcomes are functional
 * [x] reviewer dashboard works
 * [x] review queue works
 * [x] tests pass

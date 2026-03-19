@@ -205,7 +205,7 @@ class SubmissionManagementController extends Controller
                     ->all(),
             ],
             'submissionFileDefinitions' => $this->submissionFileDefinitions(),
-            'availableTransitions' => app(SubmissionStatusTransitionService::class)->availableStaffTransitions($submission),
+            'availableTransitions' => app(SubmissionStatusTransitionService::class)->availableIntakeTransitions($submission),
             'canTransitionStatus' => request()->user()?->can('update', $submission) ?? false,
             'reviewerOptions' => Reviewer::query()
                 ->with('user:id,name,email')
@@ -292,7 +292,7 @@ class SubmissionManagementController extends Controller
             'updatedAt' => $submission->updated_at?->toDateTimeString(),
             'latestStatusReason' => $submission->statusHistory->first()?->reason,
             'intakeChecklist' => $intakeChecklist,
-            'availableTransitions' => $transitionService->availableStaffTransitions($submission),
+            'availableTransitions' => $transitionService->availableIntakeTransitions($submission),
         ];
     }
 

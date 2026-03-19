@@ -108,11 +108,14 @@ Current progress:
 - reviewer assignment foundation completed
 - screening review draft and submit flow completed
 - reviewer queue completed
+- manager screening queue completed
+- screening decision workflow completed
+- reviewer reassignment workflow completed
 - seasons, stages, industries, applicants, social links, organizations, team members, submission intake, submission versioning, private submission file handling, status history tracking, intake operations, presenter counters, open-call visibility, and dashboard metrics are now in place
-- reviewer profiles, reviewer permissions, reviewer-only visibility rules, reviewer assignments, reviewer notifications, reviewer workload visibility, screening recommendations, screening draft save, final screening submission, and reviewer work queue are now in place
+- reviewer profiles, reviewer permissions, reviewer-only visibility rules, reviewer assignments, reviewer notifications, reviewer workload visibility, screening recommendations, screening draft save, final screening submission, reviewer work queue, manager screening queue, reassignment, and shortlist or reject or revision decisions are now in place
 - checklist estimate:
-  - Phase N2 detail backlog is roughly 24% complete
-  - full multi-phase roadmap is roughly 27% complete
+  - Phase N2 detail backlog is roughly 44% complete
+  - full multi-phase roadmap is roughly 32% complete
 
 ### Phase N2: Operational Workflow
 

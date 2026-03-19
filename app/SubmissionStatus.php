@@ -9,6 +9,7 @@ enum SubmissionStatus: string
     case UnderIntakeCheck = 'under_intake_check';
     case IncompleteReturned = 'incomplete_returned';
     case Eligible = 'eligible';
+    case Shortlisted = 'shortlisted';
     case Rejected = 'rejected';
 
     public function label(): string
@@ -19,6 +20,7 @@ enum SubmissionStatus: string
             self::UnderIntakeCheck => 'Under intake check',
             self::IncompleteReturned => 'Returned for correction',
             self::Eligible => 'Eligible',
+            self::Shortlisted => 'Shortlisted',
             self::Rejected => 'Rejected',
         };
     }
@@ -31,6 +33,7 @@ enum SubmissionStatus: string
             self::UnderIntakeCheck => 'review',
             self::IncompleteReturned => 'review',
             self::Eligible => 'published',
+            self::Shortlisted => 'published',
             self::Rejected => 'archived',
         };
     }
@@ -39,7 +42,7 @@ enum SubmissionStatus: string
     {
         return match ($this) {
             self::Draft, self::IncompleteReturned => true,
-            self::Submitted, self::UnderIntakeCheck, self::Eligible, self::Rejected => false,
+            self::Submitted, self::UnderIntakeCheck, self::Eligible, self::Shortlisted, self::Rejected => false,
         };
     }
 }

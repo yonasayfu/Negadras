@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ReassignReviewerAssignmentRequest;
 use App\Http\Requests\Admin\StoreReviewerAssignmentRequest;
 use App\Models\Reviewer;
 use App\Models\ReviewerAssignment;
@@ -30,6 +31,26 @@ class ReviewerAssignmentManagementController extends Controller
         );
 
         return to_route('admin-submissions.show', $submission)->with('success', 'Reviewer assigned successfully.');
+    }
+
+    public function update(
+        ReassignReviewerAssignmentRequest $request,
+        ReviewerAssignment $reviewerAssignment,
+        ReviewerAssignmentService $assignmentService,
+    ): RedirectResponse {
+        $this->authorize('update', $reviewerAssignment);
+
+        $reviewer = Reviewer::query()->findOrFail($request->validated('reviewer_id'));
+
+        $assignmentService->reassign(
+            assignment: $reviewerAssignment,
+            reviewer: $reviewer,
+            actor: $request->user(),
+            dueAt: $request->validated('due_at'),
+            reason: $request->validated('reason'),
+        );
+
+        return back()->with('success', 'Reviewer assignment updated successfully.');
     }
 
     public function destroy(

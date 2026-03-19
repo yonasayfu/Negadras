@@ -170,6 +170,13 @@ export type ManagedSubmission = {
     versionHistory?: SubmissionVersionEntry[];
     statusTimeline?: SubmissionStatusTimelineEntry[];
     reviewerAssignments?: ManagedReviewerAssignment[];
+    screeningState?: string;
+    screeningStateLabel?: string;
+    assignedReviewersCount?: number;
+    pendingReviewsCount?: number;
+    submittedReviewsCount?: number;
+    latestRecommendation?: string | null;
+    latestRecommendationLabel?: string | null;
 };
 
 export type ManagedReviewer = {
@@ -393,6 +400,9 @@ export type ResourceFilters = {
     stageId?: string;
     industryId?: string;
     status?: string;
+    reviewerId?: string;
+    recommendation?: string;
+    queueState?: string;
 };
 
 export type PaginationLink = {

@@ -1,15 +1,19 @@
 <?php
 
-namespace App\Http\Requests;
+namespace App\Http\Requests\Admin;
 
 use App\Models\Submission;
 use App\SubmissionStatus;
 use App\Support\SubmissionStatusTransitionService;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class TransitionSubmissionStatusRequest extends FormRequest
+class TransitionScreeningDecisionRequest extends FormRequest
 {
+    /**
+     * Determine if the user is authorized to make this request.
+     */
     public function authorize(): bool
     {
         /** @var Submission $submission */
@@ -19,13 +23,16 @@ class TransitionSubmissionStatusRequest extends FormRequest
     }
 
     /**
-     * @return array<string, mixed>
+     * Get the validation rules that apply to the request.
+     *
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
+        /** @var Submission $submission */
         $submission = $this->route('submission');
         $service = app(SubmissionStatusTransitionService::class);
-        $allowedTransitions = collect($service->availableIntakeTransitions($submission))
+        $allowedTransitions = collect($service->availableScreeningDecisionTransitions($submission))
             ->pluck('value')
             ->all();
 
@@ -40,7 +47,7 @@ class TransitionSubmissionStatusRequest extends FormRequest
 
                     if (blank($value)) {
                         if ($requiresReason) {
-                            $fail('A reason is required for this status change.');
+                            $fail('A reason is required for this screening decision.');
                         }
 
                         return;

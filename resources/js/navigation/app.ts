@@ -34,6 +34,7 @@ import { index as reportsIndex } from '@/routes/reports';
 import { index as reviewerQueueIndex } from '@/routes/reviewer-queue';
 import { index as reviewersIndex } from '@/routes/reviewers';
 import { index as rolesIndex } from '@/routes/roles';
+import { index as screeningQueueIndex } from '@/routes/screening-queue';
 import { index as seasonsIndex } from '@/routes/seasons';
 import { index as stagesIndex } from '@/routes/stages';
 import { index as submissionsIndex } from '@/routes/submissions';
@@ -159,6 +160,12 @@ export const appNavigation: NavGroup[] = [
                 href: adminSubmissionsIndex(),
                 icon: FolderKanban,
                 permission: 'submissions.view',
+            },
+            {
+                title: 'Screening queue',
+                href: screeningQueueIndex(),
+                icon: ListChecks,
+                permission: 'screening-queue.view',
             },
             {
                 title: 'Users',

@@ -3856,3 +3856,404 @@ What is intentionally still not done:
 - manager screening queue
 - shortlist decision engine
 - reopen submitted screening review flow
+
+## Entry 010: Phase N2 Manager Screening Queue and Decision Layer
+
+### Scope
+
+This phase added the manager-facing layer on top of reviewer work.
+
+The previous phase stopped at:
+
+- reviewer assignment
+- reviewer queue
+- screening review draft/save/submit
+
+That was not enough for real operations because someone still needed to:
+
+- inspect submitted screening output
+- reassign reviewer work when necessary
+- make a final screening decision
+- notify the presenter of the result
+
+This phase closed that gap.
+
+### Core design decision
+
+I did **not** introduce a separate `review_decisions` table yet.
+
+Why:
+
+- your detailed tracker places full review-decision records later
+- this batch needed a practical manager decision layer without expanding into the full shortlist engine
+
+So the decision model in this phase is:
+
+- screening evidence lives in reviewer assignments + screening reviews
+- final screening outcome still lives on the submission status
+- status history remains the audit trail
+
+That keeps the scope controlled while still making the workflow real.
+
+### Files and why they changed
+
+#### [app/SubmissionStatus.php](/Users/yonassayfu/Herd/Negadras/app/SubmissionStatus.php)
+
+Before:
+
+```diff
+- Draft
+- Submitted
+- UnderIntakeCheck
+- IncompleteReturned
+- Eligible
+- Rejected
+```
+
+After:
+
+```diff
++ Shortlisted
+```
+
+Why:
+
+- the workflow now needed a clear positive screening outcome
+- `Eligible` means intake passed
+- `Shortlisted` means manager made a post-review decision
+
+That distinction matters. They are not the same business state.
+
+#### [app/Support/SubmissionStatusTransitionService.php](/Users/yonassayfu/Herd/Negadras/app/Support/SubmissionStatusTransitionService.php)
+
+This file is the most important backend change in the phase.
+
+Before:
+
+```diff
+- intake transitions only
+- eligible had no next step
+```
+
+After:
+
+```diff
++ availableIntakeTransitions()
++ availableScreeningDecisionTransitions()
++ eligible -> incomplete_returned
++ eligible -> shortlisted
++ eligible -> rejected
++ screening decision requires submitted screening review
++ active reviewer assignments auto-cancel on final decision
+```
+
+Why this change was necessary:
+
+- intake staff and screening managers are not doing the same job
+- the old transition helper would have mixed those two workflows together
+
+The critical guard added here:
+
+```diff
++ if (! $this->hasSubmittedScreeningReview($submission)) {
++     throw ValidationException::withMessages([
++         'status' => 'A submitted screening review is required before a manager can make a screening decision.',
++     ]);
++ }
+```
+
+Why:
+
+- a manager should not shortlist or reject an entry without submitted reviewer evidence
+
+Another important rule:
+
+```diff
++ ReviewerAssignment::query()
++     ->whereIn('status', [Assigned, InProgress])
++     ->update(['status' => Cancelled]);
+```
+
+Why:
+
+- once a final screening decision exists, open reviewer work should not continue as if the submission were still pending
+
+#### [app/Support/ReviewerAssignmentService.php](/Users/yonassayfu/Herd/Negadras/app/Support/ReviewerAssignmentService.php)
+
+This service was extended instead of bypassed.
+
+New parts:
+
+```diff
++ reassign(...)
++ notify Admin/Manager on submitted screening review
+```
+
+Why:
+
+- reassignment should follow the same workflow service boundary as assignment creation
+- review submission is an operational event, not only a reviewer-local action
+
+The reassignment decision was implemented as:
+
+```diff
++ cancel old active assignment
++ create new assignment through assign(...)
+```
+
+Why:
+
+- it keeps the audit trail clear
+- the new assignment gets its own identity, due date, notification, and activity log
+
+That is cleaner than mutating the reviewer on the existing row.
+
+#### [app/Http/Requests/Admin/ReassignReviewerAssignmentRequest.php](/Users/yonassayfu/Herd/Negadras/app/Http/Requests/Admin/ReassignReviewerAssignmentRequest.php)
+
+Why this file exists:
+
+- reassignment needed its own validation boundary
+- this is not the same as first-time assignment
+
+It now validates:
+
+```diff
++ reviewer_id
++ due_at
++ reason
+```
+
+The `reason` is optional right now, but the field exists because reassignment is operationally sensitive and likely to become stricter later.
+
+#### [app/Http/Requests/Admin/TransitionScreeningDecisionRequest.php](/Users/yonassayfu/Herd/Negadras/app/Http/Requests/Admin/TransitionScreeningDecisionRequest.php)
+
+This request separates screening decisions from intake decisions.
+
+Why:
+
+- the allowed next states are different
+- the validation rule source is different
+- reason handling for decision-level actions should stay independent
+
+This is the correct boundary because later shortlist and technical review flows will diverge further.
+
+#### [app/Http/Controllers/Admin/ScreeningQueueController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/ScreeningQueueController.php)
+
+This is the main new controller of the phase.
+
+It now handles:
+
+- screening queue index
+- screening detail page
+- manager decision submission
+
+Why a separate controller was the right move:
+
+- the intake queue already has a different responsibility
+- overloading `SubmissionManagementController` further would mix intake and screening concerns
+
+The index page query now filters by:
+
+```diff
++ reviewer
++ stage
++ industry
++ recommendation
++ queue_state
++ search
+```
+
+And it derives a queue state:
+
+```diff
++ unassigned
++ review_in_progress
++ partially_reviewed
++ awaiting_decision
+```
+
+Why:
+
+- manager action depends on workflow state, not only submission status
+- a submission can still be `eligible` while being in very different screening situations
+
+The `show()` action loads:
+
+- reviewer assignments
+- submitted screening review content
+- submission narrative
+- status timeline
+- decision options
+
+That gives managers one place to read the evidence and decide.
+
+#### [app/Http/Controllers/Admin/ReviewerAssignmentManagementController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/ReviewerAssignmentManagementController.php)
+
+Before:
+
+```diff
+- store()
+- destroy()
+```
+
+After:
+
+```diff
++ update()
+```
+
+Why:
+
+- reassigning had become a real workflow requirement
+- the controller needed a first-class route instead of forcing staff to manually cancel then recreate
+
+#### [database/seeders/RolePermissionSeeder.php](/Users/yonassayfu/Herd/Negadras/database/seeders/RolePermissionSeeder.php)
+
+New permission:
+
+```diff
++ screening-queue.view
+```
+
+Given to:
+
+```diff
++ Admin
++ Manager
+```
+
+Why:
+
+- reviewer queue and screening queue are different surfaces
+- reviewers should not see the manager decision workspace
+- secretary should remain in intake, not in screening decisions
+
+That separation is important for Negadras role clarity.
+
+#### [routes/web.php](/Users/yonassayfu/Herd/Negadras/routes/web.php)
+
+New routes added:
+
+```diff
++ reviewer-assignments.update
++ screening-queue.index
++ screening-queue.show
++ screening-queue.decision
+```
+
+Why:
+
+- the manager queue needed its own entry point
+- reassignment needed a direct update route
+- decision submission needed a dedicated endpoint
+
+#### [resources/js/pages/admin/Screening/Index.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/Screening/Index.vue)
+
+This page is the manager screening cockpit.
+
+It shows:
+
+- screening queue state
+- latest recommendation
+- pending/submitted review counts
+- reviewer/stage/industry/recommendation filters
+
+Why:
+
+- manager work starts with queue triage, not with opening individual submissions blindly
+
+This page is intentionally different from intake:
+
+- intake asks "is the submission complete?"
+- screening asks "what reviewer evidence exists, and is this ready for a decision?"
+
+#### [resources/js/pages/admin/Screening/Show.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/Screening/Show.vue)
+
+This page is where the phase really lands.
+
+It combines:
+
+- reviewer assignments
+- submitted review notes and recommendations
+- reassignment forms
+- final decision form
+
+Why:
+
+- the manager must see reviewer output and act from the same surface
+- splitting those into multiple pages would slow down the workflow and weaken operational clarity
+
+#### [resources/js/navigation/app.ts](/Users/yonassayfu/Herd/Negadras/resources/js/navigation/app.ts)
+
+What changed:
+
+```diff
++ Screening queue
+```
+
+Why:
+
+- once the manager screening surface became real, it needed a distinct navigation entry
+- this avoids treating screening work as a hidden extension of intake
+
+#### [tests/Feature/ManagerScreeningQueueTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/ManagerScreeningQueueTest.php)
+
+This new test proves:
+
+- manager can open the screening queue
+- recommendation filtering works
+- manager can open screening detail with submitted reviewer evidence
+
+Why:
+
+- queue pages are easy to regress because their payload is derived and filter-heavy
+
+#### [tests/Feature/ScreeningDecisionWorkflowTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/ScreeningDecisionWorkflowTest.php)
+
+This new test proves:
+
+- manager can reassign a reviewer
+- manager can shortlist after submitted screening review
+- presenter is notified on shortlist
+- manager cannot decide without submitted review evidence
+
+Why:
+
+- these are the core business actions of the phase
+- if they break, the whole screening layer becomes untrustworthy
+
+### Laravel takeaways from this phase
+
+1. Workflow states often need derived queue states in addition to stored domain status.
+2. Reassignment is usually cleaner as "close old assignment, create new assignment" rather than mutating the original row.
+3. Intake transitions and screening decisions should not share one catch-all request contract.
+4. Manager-facing queues should be separated from reviewer-facing queues even when they touch the same submissions.
+5. Notifications become more valuable once workflow state changes cross role boundaries.
+
+### Practical Negadras result
+
+At the end of this phase:
+
+- managers have a dedicated screening queue
+- queue filtering works by reviewer, stage, industry, recommendation, and queue state
+- reviewer assignments can be reassigned from the screening workflow
+- managers can inspect submitted screening results in one place
+- managers can apply shortlist, reject, or revision decisions
+- presenters are notified when a manager records the outcome
+- manager decisions now sit on top of reviewer evidence instead of bypassing it
+
+### Progress position after this phase
+
+Using the current detailed tracker:
+
+- Phase N2 is roughly **44% complete**
+- the full tracked Negadras roadmap is roughly **32% complete**
+
+What is still intentionally not done in this phase:
+
+- technical review
+- shortlist ranking records
+- needs-more-review decision path
+- overdue reviewer reminders
+- reopen submitted screening reviews
+- full review decision table/model

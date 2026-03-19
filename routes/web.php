@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\PageManagementController;
 use App\Http\Controllers\Admin\ReviewerAssignmentManagementController;
 use App\Http\Controllers\Admin\ReviewerManagementController;
 use App\Http\Controllers\Admin\RoleManagementController;
+use App\Http\Controllers\Admin\ScreeningQueueController;
 use App\Http\Controllers\Admin\SeasonManagementController;
 use App\Http\Controllers\Admin\SettingsManagementController;
 use App\Http\Controllers\Admin\StageManagementController;
@@ -155,9 +156,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:reviewer-assignments.create')
         ->name('admin-submissions.reviewer-assignments.store');
 
+    Route::put('admin/reviewer-assignments/{reviewerAssignment}', [ReviewerAssignmentManagementController::class, 'update'])
+        ->middleware('permission:reviewer-assignments.update')
+        ->name('reviewer-assignments.update');
+
     Route::delete('admin/submissions/{submission}/reviewer-assignments/{reviewerAssignment}', [ReviewerAssignmentManagementController::class, 'destroy'])
         ->middleware('permission:reviewer-assignments.update')
         ->name('admin-submissions.reviewer-assignments.destroy');
+
+    Route::get('admin/screening', [ScreeningQueueController::class, 'index'])
+        ->middleware('permission:screening-queue.view')
+        ->name('screening-queue.index');
+
+    Route::get('admin/screening/{submission}', [ScreeningQueueController::class, 'show'])
+        ->middleware('permission:screening-queue.view')
+        ->name('screening-queue.show');
+
+    Route::post('admin/screening/{submission}/decision', [ScreeningQueueController::class, 'decide'])
+        ->middleware('permission:submissions.update')
+        ->name('screening-queue.decision');
 
     Route::get('admin/reviewers', [ReviewerManagementController::class, 'index'])
         ->middleware('permission:reviewers.view')

@@ -109,6 +109,42 @@ class ReviewerAssignmentService
         );
     }
 
+    public function reassign(
+        ReviewerAssignment $assignment,
+        Reviewer $reviewer,
+        User $actor,
+        ?string $dueAt = null,
+        ?string $reason = null,
+    ): ReviewerAssignment {
+        $submission = $assignment->submission()->firstOrFail();
+
+        if ($assignment->status->isActive()) {
+            $this->cancel($assignment, $actor);
+        }
+
+        $newAssignment = $this->assign(
+            submission: $submission,
+            reviewer: $reviewer,
+            actor: $actor,
+            dueAt: $dueAt,
+        );
+
+        ActivityLogger::record(
+            actor: $actor,
+            event: 'negadras.reviewer-assignments.reassigned',
+            description: "Reassigned reviewer for {$submission->title}.",
+            subject: $newAssignment,
+            properties: [
+                'from_assignment_id' => $assignment->id,
+                'from_reviewer_id' => $assignment->reviewer_id,
+                'to_reviewer_id' => $reviewer->id,
+                'reason' => $reason,
+            ],
+        );
+
+        return $newAssignment;
+    }
+
     public function saveDraftReview(
         ReviewerAssignment $assignment,
         array $payload,
@@ -154,6 +190,17 @@ class ReviewerAssignmentService
                 'recommendation' => $payload['recommendation'],
             ],
         );
+
+        User::role(['Admin', 'Manager'])
+            ->get()
+            ->each(function (User $user) use ($assignment): void {
+                $user->notify(new SystemMessageNotification(
+                    title: 'Screening review submitted',
+                    message: "A screening review was submitted for {$assignment->submission?->title}.",
+                    actionUrl: route('screening-queue.show', $assignment->submission_id),
+                    actionLabel: 'Open screening queue',
+                ));
+            });
 
         return $review;
     }

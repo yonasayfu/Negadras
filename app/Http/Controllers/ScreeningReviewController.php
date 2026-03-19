@@ -16,6 +16,8 @@ class ScreeningReviewController extends Controller
     ): RedirectResponse {
         $this->authorize('update', $reviewerAssignment);
 
+        abort_unless($reviewerAssignment->isScreening(), 404);
+
         if ($reviewerAssignment->screeningReview?->isSubmitted()) {
             return to_route('reviewer-queue.show', $reviewerAssignment)->with('error', 'This screening review is already submitted and locked.');
         }

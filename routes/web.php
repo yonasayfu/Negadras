@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\SeasonManagementController;
 use App\Http\Controllers\Admin\SettingsManagementController;
 use App\Http\Controllers\Admin\StageManagementController;
 use App\Http\Controllers\Admin\SubmissionManagementController;
+use App\Http\Controllers\Admin\TechnicalQueueController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExportCenterController;
@@ -28,6 +29,8 @@ use App\Http\Controllers\ReviewerQueueController;
 use App\Http\Controllers\ScreeningReviewController;
 use App\Http\Controllers\SubmissionController;
 use App\Http\Controllers\SubmissionFileController;
+use App\Http\Controllers\TechnicalReviewController;
+use App\Http\Controllers\TechnicalReviewerQueueController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
 
@@ -88,9 +91,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:reviewer-queue.view')
         ->name('reviewer-queue.show');
 
+    Route::get('reviewer/technical-queue', [TechnicalReviewerQueueController::class, 'index'])
+        ->middleware('permission:technical-reviewer-queue.view')
+        ->name('technical-reviewer-queue.index');
+
+    Route::get('reviewer/technical-assignments/{reviewerAssignment}', [TechnicalReviewerQueueController::class, 'show'])
+        ->middleware('permission:technical-reviewer-queue.view')
+        ->name('technical-reviewer-queue.show');
+
     Route::post('reviewer/assignments/{reviewerAssignment}/screening-review', [ScreeningReviewController::class, 'store'])
         ->middleware('permission:screening-reviews.create')
         ->name('screening-reviews.store');
+
+    Route::post('reviewer/assignments/{reviewerAssignment}/technical-review', [TechnicalReviewController::class, 'store'])
+        ->middleware('permission:technical-reviews.create')
+        ->name('technical-reviews.store');
 
     Route::get('exports/users.csv', [ExportCenterController::class, 'usersCsv'])
         ->middleware(['permission:exports.view', 'permission:users.view'])
@@ -156,6 +171,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:reviewer-assignments.create')
         ->name('admin-submissions.reviewer-assignments.store');
 
+    Route::post('admin/submissions/{submission}/technical-reviewer-assignments', [ReviewerAssignmentManagementController::class, 'storeTechnical'])
+        ->middleware('permission:reviewer-assignments.create')
+        ->name('admin-submissions.technical-reviewer-assignments.store');
+
     Route::put('admin/reviewer-assignments/{reviewerAssignment}', [ReviewerAssignmentManagementController::class, 'update'])
         ->middleware('permission:reviewer-assignments.update')
         ->name('reviewer-assignments.update');
@@ -175,6 +194,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('admin/screening/{submission}/decision', [ScreeningQueueController::class, 'decide'])
         ->middleware('permission:submissions.update')
         ->name('screening-queue.decision');
+
+    Route::get('admin/technical', [TechnicalQueueController::class, 'index'])
+        ->middleware('permission:technical-queue.view')
+        ->name('technical-queue.index');
+
+    Route::get('admin/technical/{submission}', [TechnicalQueueController::class, 'show'])
+        ->middleware('permission:technical-queue.view')
+        ->name('technical-queue.show');
 
     Route::get('admin/reviewers', [ReviewerManagementController::class, 'index'])
         ->middleware('permission:reviewers.view')

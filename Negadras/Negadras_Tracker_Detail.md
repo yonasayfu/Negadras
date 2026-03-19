@@ -673,19 +673,19 @@ Add these entities:
 
 ### D1. Technical Review Table
 
-* [ ] Create `technical_reviews` migration
-* [ ] Add fields: `submission_id`, `reviewer_id`, `stage_id`, `innovation_score_optional`, `feasibility_score_optional`, `risk_note`, `strengths`, `weaknesses`, `recommendation`, `submitted_at`
-* [ ] Create TechnicalReview model
-* [ ] Build technical review form
-* [ ] Add structured fields for deeper evaluation
-* [ ] Add recommendation outcome
-* [ ] Allow manager to assign technical expert separately from screening reviewer
+* [x] Create `technical_reviews` migration
+* [x] Add fields: `submission_id`, `reviewer_id`, `stage_id`, `innovation_score_optional`, `feasibility_score_optional`, `risk_note`, `strengths`, `weaknesses`, `recommendation`, `submitted_at`
+* [x] Create TechnicalReview model
+* [x] Build technical review form
+* [x] Add structured fields for deeper evaluation
+* [x] Add recommendation outcome
+* [x] Allow manager to assign technical expert separately from screening reviewer
 
 ### D2. Technical Review Rules
 
-* [ ] Allow multiple technical reviews if needed
-* [ ] Show comparison of multiple review recommendations to manager
-* [ ] Add review summary view for manager/admin
+* [x] Allow multiple technical reviews if needed
+* [x] Show comparison of multiple review recommendations to manager
+* [x] Add review summary view for manager/admin
 
 ---
 
@@ -745,7 +745,7 @@ Add these entities:
 
 * [x] Create screening queue page for manager/admin
 * [x] Show pending screening reviews
-* [ ] Show technical review status
+* [x] Show technical review status
 * [x] Show submissions waiting for decision
 * [x] Add filters by reviewer, stage, industry, recommendation
 

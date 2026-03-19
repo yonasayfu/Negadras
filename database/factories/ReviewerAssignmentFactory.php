@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Models\Reviewer;
 use App\Models\ReviewerAssignment;
 use App\Models\Submission;
+use App\ReviewAssignmentType;
 use App\ReviewerAssignmentStatus;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -26,6 +27,7 @@ class ReviewerAssignmentFactory extends Factory
             'submission_id' => $submission->id,
             'reviewer_id' => Reviewer::factory(),
             'stage_id' => $submission->current_stage_id,
+            'assignment_type' => ReviewAssignmentType::Screening,
             'assigned_at' => now()->subDay(),
             'due_at' => now()->addDays(3),
             'status' => ReviewerAssignmentStatus::Assigned,

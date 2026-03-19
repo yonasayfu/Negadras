@@ -177,6 +177,23 @@ export type ManagedSubmission = {
     submittedReviewsCount?: number;
     latestRecommendation?: string | null;
     latestRecommendationLabel?: string | null;
+    technicalState?: string;
+    technicalStateLabel?: string;
+    assignedTechnicalReviewersCount?: number;
+    submittedTechnicalReviewsCount?: number;
+    screeningReviewsCount?: number;
+    latestTechnicalRecommendationLabel?: string | null;
+    averageTechnicalScore?: number | null;
+    technicalAssignments?: ManagedReviewerAssignment[];
+    screeningReviews?: {
+        reviewerName: string | null;
+        recommendation: string | null;
+        recommendationLabel?: string | null;
+        eligibilityStatus?: string | null;
+        scoreOptional?: number | null;
+        notes: string | null;
+        submittedAt: string | null;
+    }[];
 };
 
 export type ManagedReviewer = {
@@ -194,6 +211,8 @@ export type ManagedReviewer = {
 
 export type ManagedReviewerAssignment = {
     id: number;
+    assignmentType?: string;
+    assignmentTypeLabel?: string;
     submissionId?: number;
     title?: string | null;
     seasonName?: string | null;
@@ -215,6 +234,14 @@ export type ManagedReviewerAssignment = {
         scoreOptional: number | null;
         notes: string | null;
         submittedAt: string | null;
+        innovationScoreOptional?: number | null;
+        feasibilityScoreOptional?: number | null;
+        executionScoreOptional?: number | null;
+        marketScoreOptional?: number | null;
+        strengths?: string | null;
+        weaknesses?: string | null;
+        riskNote?: string | null;
+        recommendationLabel?: string | null;
     } | null;
 };
 

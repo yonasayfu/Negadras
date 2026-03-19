@@ -6,8 +6,10 @@ use App\Models\Reviewer;
 use App\Models\ReviewerAssignment;
 use App\Models\ScreeningReview;
 use App\Models\Submission;
+use App\Models\TechnicalReview;
 use App\Models\User;
 use App\Notifications\SystemMessageNotification;
+use App\ReviewAssignmentType;
 use App\ReviewerAssignmentStatus;
 use App\SubmissionStatus;
 use Illuminate\Validation\ValidationException;
@@ -19,10 +21,14 @@ class ReviewerAssignmentService
         Reviewer $reviewer,
         User $actor,
         ?string $dueAt = null,
+        ReviewAssignmentType $assignmentType = ReviewAssignmentType::Screening,
     ): ReviewerAssignment {
-        if ($submission->status !== SubmissionStatus::Eligible) {
+        if (! in_array($submission->status, $this->allowedSubmissionStatuses($assignmentType), true)) {
             throw ValidationException::withMessages([
-                'submission' => 'Only eligible submissions can be assigned to a reviewer.',
+                'submission' => match ($assignmentType) {
+                    ReviewAssignmentType::Screening => 'Only eligible submissions can be assigned to a screening reviewer.',
+                    ReviewAssignmentType::Technical => 'Only shortlisted submissions can be assigned to a technical reviewer.',
+                },
             ]);
         }
 
@@ -30,6 +36,7 @@ class ReviewerAssignmentService
             ->where('submission_id', $submission->id)
             ->where('reviewer_id', $reviewer->id)
             ->where('stage_id', $submission->current_stage_id)
+            ->where('assignment_type', $assignmentType)
             ->whereIn('status', [
                 ReviewerAssignmentStatus::Assigned,
                 ReviewerAssignmentStatus::InProgress,
@@ -38,7 +45,7 @@ class ReviewerAssignmentService
 
         if ($duplicateAssignmentExists) {
             throw ValidationException::withMessages([
-                'reviewer_id' => 'This reviewer already has an active assignment for the current submission stage.',
+                'reviewer_id' => "This reviewer already has an active {$assignmentType->label()} assignment for the current submission stage.",
             ]);
         }
 
@@ -46,16 +53,19 @@ class ReviewerAssignmentService
             'submission_id' => $submission->id,
             'reviewer_id' => $reviewer->id,
             'stage_id' => $submission->current_stage_id,
+            'assignment_type' => $assignmentType,
             'assigned_at' => now(),
             'due_at' => $dueAt,
             'status' => ReviewerAssignmentStatus::Assigned,
         ]);
 
         $reviewer->user?->notify(new SystemMessageNotification(
-            title: 'New screening assignment',
+            title: "New {$assignmentType->label()} assignment",
             message: "You were assigned to review {$submission->title}.",
-            actionUrl: route('reviewer-queue.show', $assignment),
-            actionLabel: 'Open review',
+            actionUrl: $assignmentType === ReviewAssignmentType::Screening
+                ? route('reviewer-queue.show', $assignment)
+                : route('technical-reviewer-queue.show', $assignment),
+            actionLabel: 'Open assignment',
         ));
 
         ActivityLogger::record(
@@ -67,6 +77,7 @@ class ReviewerAssignmentService
                 'submission_id' => $submission->id,
                 'reviewer_id' => $reviewer->id,
                 'stage_id' => $submission->current_stage_id,
+                'assignment_type' => $assignmentType->value,
             ],
         );
 
@@ -127,6 +138,7 @@ class ReviewerAssignmentService
             reviewer: $reviewer,
             actor: $actor,
             dueAt: $dueAt,
+            assignmentType: $assignment->assignment_type,
         );
 
         ActivityLogger::record(
@@ -139,6 +151,7 @@ class ReviewerAssignmentService
                 'from_reviewer_id' => $assignment->reviewer_id,
                 'to_reviewer_id' => $reviewer->id,
                 'reason' => $reason,
+                'assignment_type' => $assignment->assignment_type->value,
             ],
         );
 
@@ -203,5 +216,82 @@ class ReviewerAssignmentService
             });
 
         return $review;
+    }
+
+    public function saveDraftTechnicalReview(
+        ReviewerAssignment $assignment,
+        array $payload,
+    ): TechnicalReview {
+        $this->markInProgress($assignment);
+
+        return TechnicalReview::query()->updateOrCreate(
+            [
+                'reviewer_assignment_id' => $assignment->id,
+            ],
+            [
+                'submission_id' => $assignment->submission_id,
+                'reviewer_id' => $assignment->reviewer_id,
+                'stage_id' => $assignment->stage_id,
+                'innovation_score_optional' => $payload['innovation_score_optional'],
+                'feasibility_score_optional' => $payload['feasibility_score_optional'],
+                'execution_score_optional' => $payload['execution_score_optional'],
+                'market_score_optional' => $payload['market_score_optional'],
+                'strengths' => $payload['strengths'],
+                'weaknesses' => $payload['weaknesses'],
+                'risk_note' => $payload['risk_note'],
+                'recommendation' => $payload['recommendation'],
+                'submitted_at' => null,
+            ],
+        );
+    }
+
+    public function submitTechnicalReview(
+        ReviewerAssignment $assignment,
+        array $payload,
+        User $actor,
+    ): TechnicalReview {
+        $review = $this->saveDraftTechnicalReview($assignment, $payload);
+
+        $review->update([
+            'submitted_at' => now(),
+        ]);
+
+        $this->complete($assignment);
+
+        ActivityLogger::record(
+            actor: $actor,
+            event: 'negadras.technical-reviews.submitted',
+            description: "Submitted technical review for {$assignment->submission?->title}.",
+            subject: $review,
+            properties: [
+                'submission_id' => $assignment->submission_id,
+                'reviewer_assignment_id' => $assignment->id,
+                'recommendation' => $payload['recommendation'],
+            ],
+        );
+
+        User::role(['Admin', 'Manager'])
+            ->get()
+            ->each(function (User $user) use ($assignment): void {
+                $user->notify(new SystemMessageNotification(
+                    title: 'Technical review submitted',
+                    message: "A technical review was submitted for {$assignment->submission?->title}.",
+                    actionUrl: route('technical-queue.show', $assignment->submission_id),
+                    actionLabel: 'Open technical queue',
+                ));
+            });
+
+        return $review;
+    }
+
+    /**
+     * @return list<SubmissionStatus>
+     */
+    private function allowedSubmissionStatuses(ReviewAssignmentType $assignmentType): array
+    {
+        return match ($assignmentType) {
+            ReviewAssignmentType::Screening => [SubmissionStatus::Eligible],
+            ReviewAssignmentType::Technical => [SubmissionStatus::Shortlisted],
+        };
     }
 }

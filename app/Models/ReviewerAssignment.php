@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\ReviewAssignmentType;
 use App\ReviewerAssignmentStatus;
 use Database\Factories\ReviewerAssignmentFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -21,6 +22,7 @@ class ReviewerAssignment extends Model
         'submission_id',
         'reviewer_id',
         'stage_id',
+        'assignment_type',
         'assigned_at',
         'due_at',
         'status',
@@ -34,6 +36,7 @@ class ReviewerAssignment extends Model
         return [
             'assigned_at' => 'datetime',
             'due_at' => 'datetime',
+            'assignment_type' => ReviewAssignmentType::class,
             'status' => ReviewerAssignmentStatus::class,
         ];
     }
@@ -58,8 +61,23 @@ class ReviewerAssignment extends Model
         return $this->hasOne(ScreeningReview::class);
     }
 
+    public function technicalReview(): HasOne
+    {
+        return $this->hasOne(TechnicalReview::class);
+    }
+
     public function isOwnedBy(User $user): bool
     {
         return $this->reviewer?->user_id === $user->id;
+    }
+
+    public function isScreening(): bool
+    {
+        return $this->assignment_type === ReviewAssignmentType::Screening;
+    }
+
+    public function isTechnical(): bool
+    {
+        return $this->assignment_type === ReviewAssignmentType::Technical;
     }
 }

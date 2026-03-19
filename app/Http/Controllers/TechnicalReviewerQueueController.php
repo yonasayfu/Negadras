@@ -7,15 +7,14 @@ use App\Models\SubmissionFile;
 use App\Models\SubmissionStatusHistory;
 use App\ReviewAssignmentType;
 use App\ReviewerAssignmentStatus;
-use App\ScreeningEligibilityStatus;
-use App\ScreeningRecommendation;
 use App\Support\SubmissionFileRegistry;
+use App\TechnicalReviewRecommendation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class ReviewerQueueController extends Controller
+class TechnicalReviewerQueueController extends Controller
 {
     public function index(Request $request): Response
     {
@@ -29,7 +28,7 @@ class ReviewerQueueController extends Controller
 
         abort_if($reviewer === null || ! $reviewer->is_active, 403);
 
-        return Inertia::render('reviewers/Queue', [
+        return Inertia::render('reviewers/TechnicalQueue', [
             'assignments' => ReviewerAssignment::query()
                 ->with([
                     'stage:id,name',
@@ -38,10 +37,10 @@ class ReviewerQueueController extends Controller
                     'submission.industry:id,name',
                     'submission.applicant:id,full_name,email',
                     'submission.organization:id,display_name',
-                    'screeningReview:id,reviewer_assignment_id,recommendation,submitted_at',
+                    'technicalReview:id,reviewer_assignment_id,recommendation,submitted_at',
                 ])
                 ->where('reviewer_id', $reviewer->id)
-                ->where('assignment_type', ReviewAssignmentType::Screening)
+                ->where('assignment_type', ReviewAssignmentType::Technical)
                 ->when($status !== '', fn ($query) => $query->where('status', $status))
                 ->when($stageId > 0, fn ($query) => $query->where('stage_id', $stageId))
                 ->when($search !== '', function ($query) use ($search): void {
@@ -71,7 +70,7 @@ class ReviewerQueueController extends Controller
             ])->all(),
             'stageOptions' => ReviewerAssignment::query()
                 ->where('reviewer_id', $reviewer->id)
-                ->where('assignment_type', ReviewAssignmentType::Screening)
+                ->where('assignment_type', ReviewAssignmentType::Technical)
                 ->with('stage:id,name')
                 ->get()
                 ->pluck('stage')
@@ -91,12 +90,12 @@ class ReviewerQueueController extends Controller
     {
         $this->authorize('view', $reviewerAssignment);
 
-        abort_unless($reviewerAssignment->isScreening(), 404);
+        abort_unless($reviewerAssignment->isTechnical(), 404);
 
         $reviewerAssignment->load([
             'reviewer.user:id,name,email',
             'stage:id,name',
-            'screeningReview',
+            'technicalReview',
             'submission.season:id,name',
             'submission.currentStage:id,name',
             'submission.industry:id,name',
@@ -107,11 +106,12 @@ class ReviewerQueueController extends Controller
             'submission.files.version:id,version_no',
             'submission.files.uploadedBy:id,name',
             'submission.statusHistory.actor:id,name',
+            'submission.screeningReviews.reviewerAssignment.reviewer.user:id,name',
         ]);
 
         $submission = $reviewerAssignment->submission;
 
-        return Inertia::render('reviewers/Review', [
+        return Inertia::render('reviewers/TechnicalReview', [
             'assignment' => $this->assignmentDetail($reviewerAssignment),
             'submissionFileDefinitions' => collect(SubmissionFileRegistry::definitions())
                 ->map(fn (array $definition, string $type): array => [
@@ -141,6 +141,18 @@ class ReviewerQueueController extends Controller
                 'businessModel' => $submission->business_model,
                 'currentVersionNumber' => $submission->currentVersion?->version_no,
                 'latestStatusReason' => $submission->statusHistory->first()?->reason,
+                'screeningReviews' => $submission->screeningReviews
+                    ->filter(fn ($review) => $review->submitted_at !== null)
+                    ->map(fn ($review): array => [
+                        'reviewerName' => $review->reviewerAssignment?->reviewer?->user?->name,
+                        'recommendation' => $review->recommendation?->label(),
+                        'eligibilityStatus' => $review->eligibility_status?->label(),
+                        'scoreOptional' => $review->score_optional,
+                        'notes' => $review->notes,
+                        'submittedAt' => $review->submitted_at?->toDateTimeString(),
+                    ])
+                    ->values()
+                    ->all(),
                 'currentVersionFiles' => $submission->files
                     ->where('submission_version_id', $submission->current_version_id)
                     ->map(fn (SubmissionFile $file): array => [
@@ -189,11 +201,7 @@ class ReviewerQueueController extends Controller
                     ->values()
                     ->all(),
             ],
-            'recommendationOptions' => collect(ScreeningRecommendation::cases())->map(fn ($case): array => [
-                'value' => $case->value,
-                'label' => $case->label(),
-            ])->all(),
-            'eligibilityOptions' => collect(ScreeningEligibilityStatus::cases())->map(fn ($case): array => [
+            'recommendationOptions' => collect(TechnicalReviewRecommendation::cases())->map(fn ($case): array => [
                 'value' => $case->value,
                 'label' => $case->label(),
             ])->all(),
@@ -219,7 +227,9 @@ class ReviewerQueueController extends Controller
             'dueAt' => $assignment->due_at?->toDateTimeString(),
             'assignedAt' => $assignment->assigned_at?->toDateTimeString(),
             'isOverdue' => $assignment->due_at?->isPast() && $assignment->status->isActive(),
-            'recommendationLabel' => $assignment->screeningReview?->recommendation?->label(),
+            'assignmentType' => $assignment->assignment_type->value,
+            'assignmentTypeLabel' => $assignment->assignment_type->label(),
+            'recommendationLabel' => $assignment->technicalReview?->recommendation?->label(),
         ];
     }
 
@@ -232,12 +242,16 @@ class ReviewerQueueController extends Controller
             ...$this->assignmentSummary($assignment),
             'reviewerName' => $assignment->reviewer?->user?->name,
             'reviewerEmail' => $assignment->reviewer?->user?->email,
-            'review' => $assignment->screeningReview === null ? null : [
-                'eligibilityStatus' => $assignment->screeningReview->eligibility_status?->value,
-                'recommendation' => $assignment->screeningReview->recommendation?->value,
-                'scoreOptional' => $assignment->screeningReview->score_optional,
-                'notes' => $assignment->screeningReview->notes,
-                'submittedAt' => $assignment->screeningReview->submitted_at?->toDateTimeString(),
+            'review' => $assignment->technicalReview === null ? null : [
+                'innovationScoreOptional' => $assignment->technicalReview->innovation_score_optional,
+                'feasibilityScoreOptional' => $assignment->technicalReview->feasibility_score_optional,
+                'executionScoreOptional' => $assignment->technicalReview->execution_score_optional,
+                'marketScoreOptional' => $assignment->technicalReview->market_score_optional,
+                'strengths' => $assignment->technicalReview->strengths,
+                'weaknesses' => $assignment->technicalReview->weaknesses,
+                'riskNote' => $assignment->technicalReview->risk_note,
+                'recommendation' => $assignment->technicalReview->recommendation?->value,
+                'submittedAt' => $assignment->technicalReview->submitted_at?->toDateTimeString(),
             ],
         ];
     }

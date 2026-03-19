@@ -9,7 +9,9 @@ class ReviewerAssignmentPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->can('reviewer-assignments.view') || $user->can('reviewer-queue.view');
+        return $user->can('reviewer-assignments.view')
+            || $user->can('reviewer-queue.view')
+            || $user->can('technical-reviewer-queue.view');
     }
 
     public function view(User $user, ReviewerAssignment $reviewerAssignment): bool

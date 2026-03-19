@@ -9,6 +9,7 @@ use App\Models\ReviewerAssignment;
 use App\Models\Submission;
 use App\Models\SubmissionStatusHistory;
 use App\Notifications\SystemMessageNotification;
+use App\ReviewAssignmentType;
 use App\ReviewerAssignmentStatus;
 use App\SubmissionStatus;
 use App\Support\ActivityLogger;
@@ -39,16 +40,18 @@ class ScreeningQueueController extends Controller
                     'industry:id,name',
                     'applicant:id,full_name,email',
                     'organization:id,display_name',
-                    'reviewerAssignments:id,submission_id,reviewer_id,stage_id,status,assigned_at,due_at',
+                    'reviewerAssignments:id,submission_id,reviewer_id,stage_id,assignment_type,status,assigned_at,due_at',
                     'reviewerAssignments.reviewer.user:id,name',
                     'reviewerAssignments.screeningReview:id,reviewer_assignment_id,recommendation,eligibility_status,submitted_at',
                     'statusHistory:id,submission_id,from_status,to_status,changed_by,reason,created_at',
                 ])
                 ->where('status', SubmissionStatus::Eligible)
-                ->whereHas('reviewerAssignments')
+                ->whereHas('reviewerAssignments', fn ($assignmentQuery) => $assignmentQuery->where('assignment_type', ReviewAssignmentType::Screening))
                 ->when($stageId > 0, fn ($query) => $query->where('current_stage_id', $stageId))
                 ->when($industryId > 0, fn ($query) => $query->where('industry_id', $industryId))
-                ->when($reviewerId > 0, fn ($query) => $query->whereHas('reviewerAssignments', fn ($assignmentQuery) => $assignmentQuery->where('reviewer_id', $reviewerId)))
+                ->when($reviewerId > 0, fn ($query) => $query->whereHas('reviewerAssignments', fn ($assignmentQuery) => $assignmentQuery
+                    ->where('assignment_type', ReviewAssignmentType::Screening)
+                    ->where('reviewer_id', $reviewerId)))
                 ->when($recommendation !== '', fn ($query) => $query->whereHas('screeningReviews', fn ($reviewQuery) => $reviewQuery->where('recommendation', $recommendation)->whereNotNull('submitted_at')))
                 ->when($search !== '', function ($query) use ($search): void {
                     $query->where(function ($submissionQuery) use ($search): void {
@@ -86,7 +89,7 @@ class ScreeningQueueController extends Controller
                 ->all(),
             'stageOptions' => Submission::query()
                 ->join('stages', 'stages.id', '=', 'submissions.current_stage_id')
-                ->whereHas('reviewerAssignments')
+                ->whereHas('reviewerAssignments', fn ($assignmentQuery) => $assignmentQuery->where('assignment_type', ReviewAssignmentType::Screening))
                 ->distinct()
                 ->orderBy('stages.name')
                 ->get(['stages.id as id', 'stages.name as name'])
@@ -97,7 +100,7 @@ class ScreeningQueueController extends Controller
                 ->all(),
             'industryOptions' => Submission::query()
                 ->join('industries', 'industries.id', '=', 'submissions.industry_id')
-                ->whereHas('reviewerAssignments')
+                ->whereHas('reviewerAssignments', fn ($assignmentQuery) => $assignmentQuery->where('assignment_type', ReviewAssignmentType::Screening))
                 ->distinct()
                 ->orderBy('industries.name')
                 ->get(['industries.id as id', 'industries.name as name'])
@@ -134,7 +137,7 @@ class ScreeningQueueController extends Controller
             'industry:id,name',
             'applicant:id,full_name,email,phone',
             'organization:id,display_name,contact_email',
-            'reviewerAssignments:id,submission_id,reviewer_id,stage_id,status,assigned_at,due_at',
+            'reviewerAssignments:id,submission_id,reviewer_id,stage_id,assignment_type,status,assigned_at,due_at',
             'reviewerAssignments.reviewer.user:id,name,email',
             'reviewerAssignments.stage:id,name',
             'reviewerAssignments.screeningReview:id,submission_id,reviewer_assignment_id,eligibility_status,recommendation,score_optional,notes,submitted_at',
@@ -226,10 +229,13 @@ class ScreeningQueueController extends Controller
      */
     private function screeningSummary(Submission $submission): array
     {
-        $submittedReviews = $submission->reviewerAssignments
+        $screeningAssignments = $submission->reviewerAssignments
+            ->filter(fn (ReviewerAssignment $assignment): bool => $assignment->isScreening())
+            ->values();
+        $submittedReviews = $screeningAssignments
             ->filter(fn (ReviewerAssignment $assignment): bool => $assignment->screeningReview?->submitted_at !== null)
             ->values();
-        $activeAssignments = $submission->reviewerAssignments
+        $activeAssignments = $screeningAssignments
             ->filter(fn (ReviewerAssignment $assignment): bool => $assignment->status->isActive())
             ->values();
         $latestSubmittedReview = $submittedReviews
@@ -254,12 +260,12 @@ class ScreeningQueueController extends Controller
             'latestStatusReason' => $submission->statusHistory->first()?->reason,
             'screeningState' => $this->screeningState($submission),
             'screeningStateLabel' => str($this->screeningState($submission))->replace('_', ' ')->title()->toString(),
-            'assignedReviewersCount' => $submission->reviewerAssignments->count(),
+            'assignedReviewersCount' => $screeningAssignments->count(),
             'pendingReviewsCount' => $activeAssignments->count(),
             'submittedReviewsCount' => $submittedReviews->count(),
             'latestRecommendation' => $latestSubmittedReview?->screeningReview?->recommendation?->value,
             'latestRecommendationLabel' => $latestSubmittedReview?->screeningReview?->recommendation?->label(),
-            'reviewerAssignments' => $submission->reviewerAssignments
+            'reviewerAssignments' => $screeningAssignments
                 ->map(fn (ReviewerAssignment $assignment): array => [
                     'id' => $assignment->id,
                     'submissionId' => $assignment->submission_id,
@@ -288,17 +294,20 @@ class ScreeningQueueController extends Controller
 
     private function screeningState(Submission $submission): string
     {
-        $submittedReviewsCount = $submission->reviewerAssignments
+        $screeningAssignments = $submission->reviewerAssignments
+            ->filter(fn (ReviewerAssignment $assignment): bool => $assignment->isScreening())
+            ->values();
+        $submittedReviewsCount = $screeningAssignments
             ->filter(fn (ReviewerAssignment $assignment): bool => $assignment->screeningReview?->submitted_at !== null)
             ->count();
-        $activeAssignmentsCount = $submission->reviewerAssignments
+        $activeAssignmentsCount = $screeningAssignments
             ->filter(fn (ReviewerAssignment $assignment): bool => in_array($assignment->status, [
                 ReviewerAssignmentStatus::Assigned,
                 ReviewerAssignmentStatus::InProgress,
             ], true))
             ->count();
 
-        if ($submission->reviewerAssignments->isEmpty()) {
+        if ($screeningAssignments->isEmpty()) {
             return 'unassigned';
         }
 

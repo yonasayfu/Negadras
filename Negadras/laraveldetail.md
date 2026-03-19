@@ -4257,3 +4257,289 @@ What is still intentionally not done in this phase:
 - overdue reviewer reminders
 - reopen submitted screening reviews
 - full review decision table/model
+
+## Entry 011: Phase N2 Technical Review Foundation
+
+### Scope
+
+This batch added the second review track after screening:
+
+- technical reviewer assignment separated from screening assignment
+- technical review table and deeper evaluation form
+- reviewer-facing technical queue
+- manager-facing technical queue
+- comparison of screening output vs technical output
+
+The key design rule was simple: do not create a second reviewer identity system. Keep one reviewer profile, separate the workflow by assignment type and review table.
+
+### Files and why they changed
+
+#### [app/ReviewAssignmentType.php](/Users/yonassayfu/Herd/Negadras/app/ReviewAssignmentType.php)
+
+Before:
+
+```diff
+- file did not exist
+```
+
+After:
+
+```diff
++ case Screening = 'screening';
++ case Technical = 'technical';
+```
+
+Why:
+
+- Negadras already had reviewer assignments, but they were implicitly screening-only.
+- Once technical review starts, the assignment itself must declare which workflow it belongs to.
+- This avoids building two parallel assignment systems.
+
+#### [database/migrations/2026_03_19_083419_add_assignment_type_to_reviewer_assignments_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_083419_add_assignment_type_to_reviewer_assignments_table.php)
+
+Key addition:
+
+```diff
++ $table->string('assignment_type', 32)->default('screening')->after('stage_id');
+```
+
+Why:
+
+- old assignments continue to work because the default is `screening`
+- new technical work can now live in the same operational table without mixing logic
+
+#### [database/migrations/2026_03_19_083405_create_technical_reviews_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_083405_create_technical_reviews_table.php)
+
+Key additions:
+
+```diff
++ $table->foreignId('reviewer_assignment_id')->constrained()->cascadeOnDelete();
++ $table->unsignedTinyInteger('innovation_score_optional')->nullable();
++ $table->unsignedTinyInteger('feasibility_score_optional')->nullable();
++ $table->unsignedTinyInteger('execution_score_optional')->nullable();
++ $table->unsignedTinyInteger('market_score_optional')->nullable();
++ $table->text('strengths')->nullable();
++ $table->text('weaknesses')->nullable();
++ $table->text('risk_note')->nullable();
++ $table->string('recommendation', 32);
++ $table->timestamp('submitted_at')->nullable();
+```
+
+Why:
+
+- technical review is intentionally deeper than screening
+- scores are optional to keep the first technical phase flexible
+- the real locked boundary is still `submitted_at`
+- `reviewer_assignment_id` is what preserves ownership and lock rules cleanly
+
+#### [app/Models/ReviewerAssignment.php](/Users/yonassayfu/Herd/Negadras/app/Models/ReviewerAssignment.php)
+
+Important changes:
+
+```diff
++ 'assignment_type',
++ 'assignment_type' => ReviewAssignmentType::class,
++ public function technicalReview(): HasOne
++ public function isScreening(): bool
++ public function isTechnical(): bool
+```
+
+Why:
+
+- all old queue code now needs a reliable way to say "screening only" or "technical only"
+- using helper methods is safer than repeating string comparisons in controllers
+
+#### [app/Support/ReviewerAssignmentService.php](/Users/yonassayfu/Herd/Negadras/app/Support/ReviewerAssignmentService.php)
+
+This is the most important backend file in the phase.
+
+Before:
+
+```diff
+- assign() only understood screening reviewer assignment
+- no technical draft/save/submit methods existed
+```
+
+After:
+
+```diff
++ assign(..., ReviewAssignmentType $assignmentType = ReviewAssignmentType::Screening)
++ allowedSubmissionStatuses() separates Eligible vs Shortlisted entry points
++ saveDraftTechnicalReview()
++ submitTechnicalReview()
+```
+
+Why:
+
+- screening assignment should still require `eligible`
+- technical assignment should only happen after `shortlisted`
+- both flows reuse one service, but the business gate changes by assignment type
+
+Most important logic snippet:
+
+```php
+return match ($assignmentType) {
+    ReviewAssignmentType::Screening => [SubmissionStatus::Eligible],
+    ReviewAssignmentType::Technical => [SubmissionStatus::Shortlisted],
+};
+```
+
+That one branch is what prevents technical review from leaking into the earlier intake/screening stage.
+
+#### [app/Http/Controllers/TechnicalReviewerQueueController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/TechnicalReviewerQueueController.php)
+
+Why it exists:
+
+- reviewer queue and technical reviewer queue are not the same operational surface
+- the technical reviewer needs deeper context, including submitted screening output
+
+Important filter:
+
+```diff
++ ->where('assignment_type', ReviewAssignmentType::Technical)
+```
+
+Without this, the reviewer would see mixed screening and technical work in one list.
+
+#### [app/Http/Controllers/Admin/TechnicalQueueController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/TechnicalQueueController.php)
+
+Why it exists:
+
+- managers needed a dedicated place to:
+  - assign technical experts
+  - see technical review state
+  - compare multiple technical outputs
+  - compare screening evidence against technical evidence
+
+Important summary logic:
+
+```php
+$technicalAssignments = $submission->reviewerAssignments
+    ->filter(fn (ReviewerAssignment $assignment): bool => $assignment->isTechnical());
+```
+
+This is the operational split of the whole phase. The manager queue stops pretending all reviewer work is one homogeneous thing.
+
+#### [app/Http/Requests/StoreTechnicalReviewRequest.php](/Users/yonassayfu/Herd/Negadras/app/Http/Requests/StoreTechnicalReviewRequest.php)
+
+Why:
+
+- draft technical review should stay light
+- final submit should require the real qualitative fields
+
+Example:
+
+```diff
++ 'strengths' => [$submitting ? 'required' : 'nullable', 'string', 'max:10000'],
++ 'weaknesses' => [$submitting ? 'required' : 'nullable', 'string', 'max:10000'],
++ 'recommendation' => [$submitting ? 'required' : 'nullable', Rule::enum(TechnicalReviewRecommendation::class)],
+```
+
+That is the Laravel rule boundary between "work in progress" and "submitted review".
+
+#### [resources/js/pages/reviewers/TechnicalReview.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/reviewers/TechnicalReview.vue)
+
+Why:
+
+- the technical reviewer needs a different form than screening
+- screening had one optional score and one note block
+- technical review now records multiple score dimensions, strengths, weaknesses, and risk
+
+#### [resources/js/pages/admin/Technical/Show.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/Technical/Show.vue)
+
+Why:
+
+- this is where manager comparison actually becomes usable
+- one screen now shows:
+  - screening reviews
+  - technical assignments
+  - submitted technical outputs
+  - technical averages
+  - new expert assignment action
+
+This file matters because it turns the backend separation into an actual decision workspace instead of just new tables.
+
+#### [database/seeders/RolePermissionSeeder.php](/Users/yonassayfu/Herd/Negadras/database/seeders/RolePermissionSeeder.php)
+
+Added permissions:
+
+```diff
++ technical-reviewer-queue.view
++ technical-queue.view
++ technical-reviews.view
++ technical-reviews.create
++ technical-reviews.update
+```
+
+Why:
+
+- reviewer role can now access technical review when assigned
+- manager/admin can oversee the technical queue
+- screening permissions remain separate
+
+This preserves Negadras RBAC clarity instead of turning "reviewer" into one giant permission blob.
+
+#### Migration ordering fix
+
+During verification, a clean database install exposed a real defect:
+
+```diff
+- 2026_03_19_072945_create_reviewers_table.php
++ 2026_03_19_072944_create_reviewers_table.php
+```
+
+Why this matters:
+
+- `reviewer_assignments` depends on `reviewers`
+- same-timestamp reviewer migrations were safe only in an already-migrated dev database
+- a real production bootstrap or a fresh CI database could fail
+
+This fix is part of the phase because release-ready work must survive a fresh install, not just incremental local development.
+
+### Tests added and why they matter
+
+- [TechnicalReviewFlowTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/TechnicalReviewFlowTest.php)
+- [ManagerTechnicalQueueTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/ManagerTechnicalQueueTest.php)
+- [TechnicalReviewComparisonTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/TechnicalReviewComparisonTest.php)
+
+Why:
+
+- reviewer technical draft/save/submit must lock correctly
+- manager must be able to assign a technical reviewer
+- manager technical queue filtering and comparison must return the right data
+
+### Laravel takeaways from this phase
+
+1. One actor type can participate in multiple workflows without duplicating the profile model.
+2. Workflow separation should usually happen at the assignment layer first, not by cloning whole user tables.
+3. A new review phase usually needs both:
+   - a new review table
+   - a typed assignment boundary
+4. If a model gains a new enum field, old eager-load column lists must be updated or derived helper methods will silently break.
+5. Fresh-install migration safety is part of feature completeness.
+
+### Practical Negadras result
+
+At the end of this phase:
+
+- technical review is now a real workflow, not a future placeholder
+- technical reviewer assignment is separated from screening assignment
+- reviewers can work technical tasks from a dedicated technical queue
+- managers can assign technical experts independently from screening reviewers
+- managers can compare screening output with submitted technical output
+- multiple technical reviews per submission are now supported through separate assignments
+
+### Progress position after this phase
+
+Using the current detailed tracker:
+
+- Phase N2 is roughly **61% complete**
+- the full tracked Negadras roadmap is roughly **37% complete**
+
+What is still intentionally not done in this phase:
+
+- needs-more-review manager decision path
+- shortlist record table and ranking
+- technical review reopen flow
+- reviewer reminder scheduling
+- live judging and panel scoring

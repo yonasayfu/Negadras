@@ -38,6 +38,8 @@ import { index as screeningQueueIndex } from '@/routes/screening-queue';
 import { index as seasonsIndex } from '@/routes/seasons';
 import { index as stagesIndex } from '@/routes/stages';
 import { index as submissionsIndex } from '@/routes/submissions';
+import { index as technicalQueueIndex } from '@/routes/technical-queue';
+import { index as technicalReviewerQueueIndex } from '@/routes/technical-reviewer-queue';
 import { index as usersIndex } from '@/routes/users';
 import type { NavGroup } from '@/types';
 
@@ -109,6 +111,12 @@ export const appNavigation: NavGroup[] = [
                 permission: 'reviewer-queue.view',
             },
             {
+                title: 'Technical review queue',
+                href: technicalReviewerQueueIndex(),
+                icon: ListChecks,
+                permission: 'technical-reviewer-queue.view',
+            },
+            {
                 title: 'Seasons',
                 href: seasonsIndex(),
                 icon: CalendarRange,
@@ -166,6 +174,12 @@ export const appNavigation: NavGroup[] = [
                 href: screeningQueueIndex(),
                 icon: ListChecks,
                 permission: 'screening-queue.view',
+            },
+            {
+                title: 'Technical queue',
+                href: technicalQueueIndex(),
+                icon: ListChecks,
+                permission: 'technical-queue.view',
             },
             {
                 title: 'Users',

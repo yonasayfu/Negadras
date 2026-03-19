@@ -69,4 +69,9 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->hasOne(Reviewer::class);
     }
+
+    public function judge(): HasOne
+    {
+        return $this->hasOne(Judge::class);
+    }
 }

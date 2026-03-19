@@ -3,14 +3,18 @@
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\Admin\ApplicantManagementController;
 use App\Http\Controllers\Admin\IndustryManagementController;
+use App\Http\Controllers\Admin\JudgeManagementController;
 use App\Http\Controllers\Admin\MediaManagementController;
 use App\Http\Controllers\Admin\NoteManagementController;
 use App\Http\Controllers\Admin\OrganizationManagementController;
 use App\Http\Controllers\Admin\PageImportController;
 use App\Http\Controllers\Admin\PageManagementController;
+use App\Http\Controllers\Admin\PanelManagementController;
+use App\Http\Controllers\Admin\PanelScoringController;
 use App\Http\Controllers\Admin\ReviewerAssignmentManagementController;
 use App\Http\Controllers\Admin\ReviewerManagementController;
 use App\Http\Controllers\Admin\RoleManagementController;
+use App\Http\Controllers\Admin\RubricManagementController;
 use App\Http\Controllers\Admin\ScreeningQueueController;
 use App\Http\Controllers\Admin\SeasonManagementController;
 use App\Http\Controllers\Admin\SettingsManagementController;
@@ -23,6 +27,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExportCenterController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\HandbookController;
+use App\Http\Controllers\JudgeWorkspaceController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PublicPageController;
 use App\Http\Controllers\ReportsController;
@@ -107,6 +112,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('reviewer/assignments/{reviewerAssignment}/technical-review', [TechnicalReviewController::class, 'store'])
         ->middleware('permission:technical-reviews.create')
         ->name('technical-reviews.store');
+
+    Route::get('judge/workspace', [JudgeWorkspaceController::class, 'index'])
+        ->middleware('permission:judge-workspace.view')
+        ->name('judge-workspace.index');
+
+    Route::get('judge/assignments/{panelSubmissionAssignment}', [JudgeWorkspaceController::class, 'show'])
+        ->middleware('permission:judge-workspace.view')
+        ->name('judge-workspace.show');
+
+    Route::post('judge/assignments/{panelSubmissionAssignment}/scores', [JudgeWorkspaceController::class, 'storeScores'])
+        ->middleware('permission:judge-scores.create')
+        ->name('judge-workspace.scores.store');
+
+    Route::post('judge/assignments/{panelSubmissionAssignment}/conflicts', [JudgeWorkspaceController::class, 'storeConflict'])
+        ->middleware('permission:judge-conflicts.create')
+        ->name('judge-workspace.conflicts.store');
 
     Route::get('exports/users.csv', [ExportCenterController::class, 'usersCsv'])
         ->middleware(['permission:exports.view', 'permission:users.view'])
@@ -239,6 +260,90 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('admin/reviewers', [ReviewerManagementController::class, 'index'])
         ->middleware('permission:reviewers.view')
         ->name('reviewers.index');
+
+    Route::get('admin/judges', [JudgeManagementController::class, 'index'])
+        ->middleware('permission:judges.view')
+        ->name('judges.index');
+
+    Route::get('admin/judges/create', [JudgeManagementController::class, 'create'])
+        ->middleware('permission:judges.create')
+        ->name('judges.create');
+
+    Route::post('admin/judges', [JudgeManagementController::class, 'store'])
+        ->middleware('permission:judges.create')
+        ->name('judges.store');
+
+    Route::get('admin/judges/{judge}/edit', [JudgeManagementController::class, 'edit'])
+        ->middleware('permission:judges.view')
+        ->name('judges.edit');
+
+    Route::put('admin/judges/{judge}', [JudgeManagementController::class, 'update'])
+        ->middleware('permission:judges.update')
+        ->name('judges.update');
+
+    Route::get('admin/rubrics', [RubricManagementController::class, 'index'])
+        ->middleware('permission:rubrics.view')
+        ->name('rubrics.index');
+
+    Route::get('admin/rubrics/create', [RubricManagementController::class, 'create'])
+        ->middleware('permission:rubrics.create')
+        ->name('rubrics.create');
+
+    Route::post('admin/rubrics', [RubricManagementController::class, 'store'])
+        ->middleware('permission:rubrics.create')
+        ->name('rubrics.store');
+
+    Route::get('admin/rubrics/{rubric}/edit', [RubricManagementController::class, 'edit'])
+        ->middleware('permission:rubrics.view')
+        ->name('rubrics.edit');
+
+    Route::put('admin/rubrics/{rubric}', [RubricManagementController::class, 'update'])
+        ->middleware('permission:rubrics.update')
+        ->name('rubrics.update');
+
+    Route::get('admin/panels', [PanelManagementController::class, 'index'])
+        ->middleware('permission:panels.view')
+        ->name('panels.index');
+
+    Route::get('admin/panels/create', [PanelManagementController::class, 'create'])
+        ->middleware('permission:panels.create')
+        ->name('panels.create');
+
+    Route::post('admin/panels', [PanelManagementController::class, 'store'])
+        ->middleware('permission:panels.create')
+        ->name('panels.store');
+
+    Route::get('admin/panels/{panel}', [PanelManagementController::class, 'show'])
+        ->middleware('permission:panels.view')
+        ->name('panels.show');
+
+    Route::get('admin/panels/{panel}/edit', [PanelManagementController::class, 'edit'])
+        ->middleware('permission:panels.view')
+        ->name('panels.edit');
+
+    Route::put('admin/panels/{panel}', [PanelManagementController::class, 'update'])
+        ->middleware('permission:panels.update')
+        ->name('panels.update');
+
+    Route::post('admin/panels/{panel}/assignments', [PanelScoringController::class, 'storeAssignment'])
+        ->middleware('permission:panel-scoring.update')
+        ->name('panel-scoring.assignments.store');
+
+    Route::get('admin/panel-scoring/{panelSubmissionAssignment}', [PanelScoringController::class, 'show'])
+        ->middleware('permission:panel-scoring.view')
+        ->name('panel-scoring.show');
+
+    Route::put('admin/panel-scoring/{panelSubmissionAssignment}/lock', [PanelScoringController::class, 'updateLock'])
+        ->middleware('permission:panel-scoring.update')
+        ->name('panel-scoring.lock.update');
+
+    Route::post('admin/panel-scoring/{panelSubmissionAssignment}/visibility', [PanelScoringController::class, 'storeVisibilityEvent'])
+        ->middleware('permission:panel-scoring.update')
+        ->name('panel-scoring.visibility.store');
+
+    Route::put('admin/conflicts/{conflictDeclaration}', [PanelScoringController::class, 'updateConflict'])
+        ->middleware('permission:judge-conflicts.update')
+        ->name('panel-scoring.conflicts.update');
 
     Route::get('admin/reviewers/create', [ReviewerManagementController::class, 'create'])
         ->middleware('permission:reviewers.create')

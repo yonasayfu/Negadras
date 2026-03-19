@@ -4,14 +4,17 @@ import {
     BookOpenText,
     Building2,
     CalendarRange,
+    ClipboardCheck,
     FileOutput,
     FileSpreadsheet,
     FolderKanban,
     FileText,
     FolderOpen,
+    Gavel,
     IdCard,
     LayoutGrid,
     ListChecks,
+    Scale,
     Settings2,
     Shield,
     ScrollText,
@@ -26,10 +29,13 @@ import { index as applicantsIndex } from '@/routes/applicants';
 import { index as exportsIndex } from '@/routes/exports';
 import { index as handbookIndex } from '@/routes/handbook';
 import { index as industriesIndex } from '@/routes/industries';
+import { index as judgeWorkspaceIndex } from '@/routes/judge-workspace';
+import { index as judgesIndex } from '@/routes/judges';
 import { index as mediaIndex } from '@/routes/media';
 import { index as notificationsIndex } from '@/routes/notifications';
 import { index as organizationsIndex } from '@/routes/organizations';
 import { index as pagesIndex } from '@/routes/pages';
+import { index as panelsIndex } from '@/routes/panels';
 import { index as reportsIndex } from '@/routes/reports';
 import { index as reviewerQueueIndex } from '@/routes/reviewer-queue';
 import { index as reviewersIndex } from '@/routes/reviewers';
@@ -41,6 +47,7 @@ import { index as stagesIndex } from '@/routes/stages';
 import { index as submissionsIndex } from '@/routes/submissions';
 import { index as technicalQueueIndex } from '@/routes/technical-queue';
 import { index as technicalReviewerQueueIndex } from '@/routes/technical-reviewer-queue';
+import { index as rubricsIndex } from '@/routes/rubrics';
 import { index as usersIndex } from '@/routes/users';
 import type { NavGroup } from '@/types';
 
@@ -116,6 +123,12 @@ export const appNavigation: NavGroup[] = [
                 href: technicalReviewerQueueIndex(),
                 icon: ListChecks,
                 permission: 'technical-reviewer-queue.view',
+            },
+            {
+                title: 'Judge workspace',
+                href: judgeWorkspaceIndex(),
+                icon: Gavel,
+                permission: 'judge-workspace.view',
             },
             {
                 title: 'Seasons',
@@ -199,6 +212,24 @@ export const appNavigation: NavGroup[] = [
                 href: reviewersIndex(),
                 icon: ListChecks,
                 permission: 'reviewers.view',
+            },
+            {
+                title: 'Judges',
+                href: judgesIndex(),
+                icon: Gavel,
+                permission: 'judges.view',
+            },
+            {
+                title: 'Rubrics',
+                href: rubricsIndex(),
+                icon: ClipboardCheck,
+                permission: 'rubrics.view',
+            },
+            {
+                title: 'Panels',
+                href: panelsIndex(),
+                icon: Scale,
+                permission: 'panels.view',
             },
             {
                 title: 'Roles',

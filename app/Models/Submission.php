@@ -112,6 +112,26 @@ class Submission extends Model
         return $this->hasMany(ShortlistRecord::class)->latest('updated_at');
     }
 
+    public function panelAssignments(): HasMany
+    {
+        return $this->hasMany(PanelSubmissionAssignment::class)->latest('assigned_at');
+    }
+
+    public function scoreEntries(): HasMany
+    {
+        return $this->hasMany(ScoreEntry::class)->latest('submitted_at');
+    }
+
+    public function judgeComments(): HasMany
+    {
+        return $this->hasMany(JudgeComment::class)->latest('created_at');
+    }
+
+    public function conflictDeclarations(): HasMany
+    {
+        return $this->hasMany(ConflictOfInterestDeclaration::class)->latest('declared_at');
+    }
+
     public function screeningReviews(): HasMany
     {
         return $this->hasMany(ScreeningReview::class)->latest('submitted_at');

@@ -121,11 +121,20 @@ Current progress:
 - review decisions persistence completed
 - shortlist records, approval flow, and shortlist export placeholder completed
 - overdue review expiration and in-app overdue notifications completed
+- judge foundation completed
+- panel and panel-member foundation completed
+- rubric and rubric-criteria foundation completed
+- judge workspace scoring completed
+- conflict declaration workflow completed
+- score locking and visibility event tracking completed
+- panel scoring operations surface completed
 - seasons, stages, industries, applicants, social links, organizations, team members, submission intake, submission versioning, private submission file handling, status history tracking, intake operations, presenter counters, open-call visibility, and dashboard metrics are now in place
 - reviewer profiles, reviewer permissions, reviewer-only visibility rules, reviewer assignments, reviewer notifications, reviewer workload visibility, screening recommendations, structured eligibility checks, screening draft save, final screening submission, reviewer work queue, manager screening queue, reassignment, manager reopen flow, shortlist or reject or revision decisions, technical assignments, technical queue operations, technical expert comparison, shortlist approval, and overdue-review handling are now in place
+- judge profiles, judge permissions, panel membership, rubric bindings, panel submission assignment, private scoring, presenter-visible comments, conflict handling, lock and reopen flow, and score visibility history are now in place
 - checklist estimate:
   - detailed Phase 2 screening and reviewer workflow backlog is complete
-  - full multi-phase Negadras roadmap is roughly 43% complete
+  - detailed Phase 3 judge, panel, and rubric foundation backlog is substantially complete
+  - full multi-phase Negadras roadmap is roughly 52% complete
 
 ### Phase N2: Operational Workflow
 

@@ -853,18 +853,18 @@ Add:
 
 ### A1. Judge Profile
 
-* [ ] Create `judges` migration
-* [ ] Add fields: `user_id`, `professional_title`, `organization`, `specialization`, `bio`, `is_active`
-* [ ] Create Judge model
-* [ ] Create judge CRUD for admin
-* [ ] Add judge expertise tags or specialization fields
-* [ ] Add judge activation/deactivation
+* [x] Create `judges` migration
+* [x] Add fields: `user_id`, `professional_title`, `organization`, `specialization`, `bio`, `is_active`
+* [x] Create Judge model
+* [x] Create judge CRUD for admin
+* [x] Add judge expertise tags or specialization fields
+* [x] Add judge activation/deactivation
 
 ### A2. Judge Permissions
 
-* [ ] Define judge-specific permissions
-* [ ] Restrict judges to assigned submissions/panels
-* [ ] Prevent judges from seeing admin-only review decisions unless allowed
+* [x] Define judge-specific permissions
+* [x] Restrict judges to assigned submissions/panels
+* [x] Prevent judges from seeing admin-only review decisions unless allowed
 
 ---
 
@@ -872,20 +872,20 @@ Add:
 
 ### B1. Panel Table
 
-* [ ] Create `panels` migration
-* [ ] Add fields: `season_id`, `stage_id`, `name`, `description`, `status`
-* [ ] Create Panel model
-* [ ] Create panel CRUD
-* [ ] Add season/stage relationships
+* [x] Create `panels` migration
+* [x] Add fields: `season_id`, `stage_id`, `name`, `description`, `status`
+* [x] Create Panel model
+* [x] Create panel CRUD
+* [x] Add season/stage relationships
 
 ### B2. Panel Members
 
-* [ ] Create `panel_members` migration
-* [ ] Add fields: `panel_id`, `judge_id`, `role_in_panel`, `display_order`
-* [ ] Create PanelMember model
-* [ ] Add judge-to-panel assignment UI
-* [ ] Prevent duplicate judge in same panel
-* [ ] Add panel chair support
+* [x] Create `panel_members` migration
+* [x] Add fields: `panel_id`, `judge_id`, `role_in_panel`, `display_order`
+* [x] Create PanelMember model
+* [x] Add judge-to-panel assignment UI
+* [x] Prevent duplicate judge in same panel
+* [x] Add panel chair support
 
 ---
 
@@ -893,12 +893,12 @@ Add:
 
 ### C1. Declaration Table
 
-* [ ] Create `conflict_of_interest_declarations` migration
-* [ ] Add fields: `judge_id`, `submission_id`, `session_id_optional`, `conflict_type`, `description`, `declared_at`, `status`
-* [ ] Create model
-* [ ] Add declaration UI
-* [ ] Allow manager/admin review
-* [ ] Exclude conflicted judge from scoring if required
+* [x] Create `conflict_of_interest_declarations` migration
+* [x] Add fields: `judge_id`, `submission_id`, `session_id_optional`, `conflict_type`, `description`, `declared_at`, `status`
+* [x] Create model
+* [x] Add declaration UI
+* [x] Allow manager/admin review
+* [x] Exclude conflicted judge from scoring if required
 
 ---
 
@@ -906,20 +906,20 @@ Add:
 
 ### D1. Rubric Main Table
 
-* [ ] Create `rubrics` migration
-* [ ] Add fields: `name`, `description`, `industry_id_optional`, `stage_id_optional`, `total_weight`, `is_active`
-* [ ] Create Rubric model
-* [ ] Create rubric CRUD
-* [ ] Allow stage-level or industry-level rubric use
+* [x] Create `rubrics` migration
+* [x] Add fields: `name`, `description`, `industry_id_optional`, `stage_id_optional`, `total_weight`, `is_active`
+* [x] Create Rubric model
+* [x] Create rubric CRUD
+* [x] Allow stage-level or industry-level rubric use
 
 ### D2. Rubric Criteria
 
-* [ ] Create `rubric_criteria` migration
-* [ ] Add fields: `rubric_id`, `name`, `description`, `max_score`, `weight`, `order_index`, `is_required`, `visibility_rule`
-* [ ] Create RubricCriterion model
-* [ ] Build add/remove/reorder criteria UI
-* [ ] Validate total weight logic
-* [ ] Add criterion examples/help text support
+* [x] Create `rubric_criteria` migration
+* [x] Add fields: `rubric_id`, `name`, `description`, `max_score`, `weight`, `order_index`, `is_required`, `visibility_rule`
+* [x] Create RubricCriterion model
+* [x] Build add/remove/reorder criteria UI
+* [x] Validate total weight logic
+* [x] Add criterion examples/help text support
 
 ---
 
@@ -927,12 +927,12 @@ Add:
 
 ### E1. Assignment Table
 
-* [ ] Create `panel_submission_assignments` migration
-* [ ] Add fields: `panel_id`, `submission_id`, `session_id_optional`, `assigned_at`, `status`
-* [ ] Create model
-* [ ] Build assignment UI
+* [x] Create `panel_submission_assignments` migration
+* [x] Add fields: `panel_id`, `submission_id`, `session_id_optional`, `assigned_at`, `status`
+* [x] Create model
+* [x] Build assignment UI
 * [ ] Allow bulk assign shortlisted submissions to panel
-* [ ] Prevent duplicate same-panel assignment
+* [x] Prevent duplicate same-panel assignment
 
 ### E2. Assignment Rules
 
@@ -946,42 +946,42 @@ Add:
 
 ### F1. Score Entry Table
 
-* [ ] Create `score_entries` migration
-* [ ] Add fields: `submission_id`, `session_id_optional`, `panel_id_optional`, `judge_id`, `rubric_criterion_id`, `score_value`, `comment`, `is_secret`, `is_locked`, `submitted_at`
-* [ ] Create ScoreEntry model
-* [ ] Add unique index to avoid duplicate score per criterion/judge/submission/session
-* [ ] Build score calculation service
-* [ ] Add per-judge score total calculation
-* [ ] Add aggregate score calculation
+* [x] Create `score_entries` migration
+* [x] Add fields: `submission_id`, `session_id_optional`, `panel_id_optional`, `judge_id`, `rubric_criterion_id`, `score_value`, `comment`, `is_secret`, `is_locked`, `submitted_at`
+* [x] Create ScoreEntry model
+* [x] Add unique index to avoid duplicate score per criterion/judge/submission/session
+* [x] Build score calculation service
+* [x] Add per-judge score total calculation
+* [x] Add aggregate score calculation
 
 ### F2. Judge Comments
 
-* [ ] Create `judge_comments` migration
-* [ ] Add fields: `submission_id`, `judge_id`, `session_id_optional`, `comment_type`, `content`, `is_archived`, `created_at`
-* [ ] Create model
+* [x] Create `judge_comments` migration
+* [x] Add fields: `submission_id`, `judge_id`, `session_id_optional`, `comment_type`, `content`, `is_archived`, `created_at`
+* [x] Create model
 * [ ] Support comment types:
 
-  * [ ] private
+  * [x] private
   * [ ] internal
-  * [ ] presenter_visible
+  * [x] presenter_visible
   * [ ] public
-* [ ] Build comment entry UI
+* [x] Build comment entry UI
 
 ### F3. Score Locking
 
-* [ ] Create `score_locks` migration
-* [ ] Add fields for lock event
-* [ ] Build lock scores action
-* [ ] Prevent editing locked scores
-* [ ] Allow admin reopen with reason
-* [ ] Log reopen event
+* [x] Create `score_locks` migration
+* [x] Add fields for lock event
+* [x] Build lock scores action
+* [x] Prevent editing locked scores
+* [x] Allow admin reopen with reason
+* [x] Log reopen event
 
 ### F4. Score Visibility Events
 
-* [ ] Create `score_visibility_events` migration
-* [ ] Log reveal action
-* [ ] Log hide action
-* [ ] Track who changed visibility
+* [x] Create `score_visibility_events` migration
+* [x] Log reveal action
+* [x] Log hide action
+* [x] Track who changed visibility
 
 ---
 
@@ -989,49 +989,49 @@ Add:
 
 ### G1. Judge Dashboard
 
-* [ ] Show assigned panels
-* [ ] Show assigned submissions
-* [ ] Show pending scores
-* [ ] Show completed scores
+* [x] Show assigned panels
+* [x] Show assigned submissions
+* [x] Show pending scores
+* [x] Show completed scores
 * [ ] Show schedule if session linked
 
 ### G2. Judge Submission Detail
 
-* [ ] Show presenter/applicant summary
-* [ ] Show organization/team info
-* [ ] Show project summary
-* [ ] Show files and links
+* [x] Show presenter/applicant summary
+* [x] Show organization/team info
+* [x] Show project summary
+* [x] Show files and links
 * [ ] Show technical review summary if allowed
-* [ ] Show rubric criteria
-* [ ] Add score input fields
-* [ ] Add judge note/comment fields
-* [ ] Add save draft and submit score actions
+* [x] Show rubric criteria
+* [x] Add score input fields
+* [x] Add judge note/comment fields
+* [x] Add save draft and submit score actions
 
 ---
 
 ## H. Testing
 
-* [ ] Judge can only score assigned submission
-* [ ] Conflict declaration blocks scoring if configured
-* [ ] Rubric criteria weights behave correctly
-* [ ] Aggregate scoring works
-* [ ] Locked score cannot be edited
-* [ ] Reveal action is logged
-* [ ] Presenter-visible comments are stored properly
+* [x] Judge can only score assigned submission
+* [x] Conflict declaration blocks scoring if configured
+* [x] Rubric criteria weights behave correctly
+* [x] Aggregate scoring works
+* [x] Locked score cannot be edited
+* [x] Reveal action is logged
+* [x] Presenter-visible comments are stored properly
 
 ---
 
 ## Phase 3 Done Definition
 
-* [ ] judges exist with profiles
-* [ ] panels can be created
-* [ ] shortlisted submissions can be assigned to panels
-* [ ] rubrics and criteria work
-* [ ] judges can score privately
-* [ ] score calculation works
+* [x] judges exist with profiles
+* [x] panels can be created
+* [x] shortlisted submissions can be assigned to panels
+* [x] rubrics and criteria work
+* [x] judges can score privately
+* [x] score calculation works
 * [ ] comments work by visibility type
-* [ ] locking and visibility events work
-* [ ] tests pass
+* [x] locking and visibility events work
+* [x] tests pass
 
 ---
 

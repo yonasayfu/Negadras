@@ -211,6 +211,92 @@ export type ManagedReviewer = {
     activeAssignmentsCount: number;
 };
 
+export type ManagedJudge = {
+    id: number;
+    userId: number;
+    name: string | null;
+    email: string | null;
+    professionalTitle: string | null;
+    organization: string | null;
+    specialization: string | null;
+    bio: string | null;
+    isActive: boolean;
+    panelMembershipsCount: number;
+};
+
+export type ManagedRubricCriterion = {
+    id?: number;
+    name: string;
+    description: string | null;
+    maxScore: number;
+    weight: number;
+    orderIndex: number;
+    isRequired: boolean;
+    visibilityRule: string | null;
+    helpText: string | null;
+};
+
+export type ManagedRubric = {
+    id: number;
+    name: string;
+    description: string | null;
+    totalWeight: number;
+    isActive: boolean;
+    criteriaCount: number;
+    stageNames: string[];
+    industryNames: string[];
+    stageIds?: string[];
+    industryIds?: string[];
+    criteria?: ManagedRubricCriterion[];
+};
+
+export type ManagedPanelMember = {
+    id?: number;
+    judgeId: number | string;
+    judgeName?: string | null;
+    name?: string | null;
+    email?: string | null;
+    specialization?: string | null;
+    roleInPanel?: string;
+    roleLabel?: string;
+    displayOrder: number;
+};
+
+export type ManagedPanelAssignment = {
+    id: number;
+    submissionId: number;
+    title: string | null;
+    applicantName: string | null;
+    organizationName: string | null;
+    status: string;
+    statusLabel: string;
+    statusTone: string;
+    assignedAt: string | null;
+    aggregateScore: number | null;
+    isLocked: boolean;
+    latestVisibilityAction?: string | null;
+};
+
+export type ManagedPanel = {
+    id: number;
+    name: string;
+    seasonName: string | null;
+    stageName: string | null;
+    rubricName: string | null;
+    status: string;
+    statusLabel: string;
+    statusTone: string;
+    membersCount: number;
+    submissionAssignmentsCount: number;
+    description?: string | null;
+    criteria?: Array<{ id: number; name: string; weight: number; maxScore: number }>;
+    members?: ManagedPanelMember[];
+    assignments?: ManagedPanelAssignment[];
+    seasonId?: string;
+    stageId?: string;
+    rubricId?: string;
+};
+
 export type ManagedReviewDecision = {
     id: number;
     decisionType: string;

@@ -4823,3 +4823,425 @@ What is intentionally still outside this phase:
 - live-session control
 - score locking and final result publication
 - public showcase and archive layer
+
+## Entry 013: Phase N3 - Judge, Panel, and Rubric Foundation
+
+### Scope
+
+This batch implemented the first official judging layer for Negadras:
+
+- judges
+- panels and panel members
+- rubrics and weighted criteria
+- submission-to-panel assignment
+- judge scoring workspace
+- conflict declarations
+- score locking and visibility history
+
+The business shift in this phase is important. Until Phase 2, the system only answered:
+
+- can this submission pass screening?
+- can a manager shortlist it?
+
+Phase 3 changes the question to:
+
+- how do official judges evaluate shortlisted work consistently, privately, and auditable?
+
+### Files and why they changed
+
+#### Judge domain foundation
+
+- [app/Models/Judge.php](/Users/yonassayfu/Herd/Negadras/app/Models/Judge.php)
+- [database/migrations/2026_03_19_110520_create_judges_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_110520_create_judges_table.php)
+- [app/Policies/JudgePolicy.php](/Users/yonassayfu/Herd/Negadras/app/Policies/JudgePolicy.php)
+- [app/Http/Controllers/Admin/JudgeManagementController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/JudgeManagementController.php)
+
+Core additions:
+
+```diff
++ judges.user_id
++ judges.professional_title
++ judges.organization
++ judges.specialization
++ judges.bio
++ judges.is_active
+```
+
+Why:
+
+- `Reviewer` and `Judge` are not the same role in Negadras.
+- Reviewers screen and technically assess.
+- Judges score shortlisted entries inside panels.
+- A separate `judges` table preserves that operational boundary instead of overloading `reviewers`.
+
+Important model relationship:
+
+```php
+public function user(): BelongsTo
+{
+    return $this->belongsTo(User::class);
+}
+
+public function panels(): BelongsToMany
+{
+    return $this->belongsToMany(Panel::class, 'panel_members')
+        ->using(PanelMember::class)
+        ->withPivot(['role_in_panel', 'display_order'])
+        ->withTimestamps();
+}
+```
+
+Why it matters:
+
+- judges authenticate through `users`
+- judging access is not global
+- access is constrained by panel membership
+
+#### Panel and panel-member foundation
+
+- [app/Models/Panel.php](/Users/yonassayfu/Herd/Negadras/app/Models/Panel.php)
+- [app/Models/PanelMember.php](/Users/yonassayfu/Herd/Negadras/app/Models/PanelMember.php)
+- [app/PanelRole.php](/Users/yonassayfu/Herd/Negadras/app/PanelRole.php)
+- [app/PanelStatus.php](/Users/yonassayfu/Herd/Negadras/app/PanelStatus.php)
+- [database/migrations/2026_03_19_110520_create_panels_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_110520_create_panels_table.php)
+- [database/migrations/2026_03_19_110520_create_panel_members_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_110520_create_panel_members_table.php)
+- [app/Http/Controllers/Admin/PanelManagementController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/PanelManagementController.php)
+
+Core additions:
+
+```diff
++ panels.season_id
++ panels.stage_id
++ panels.rubric_id
++ panels.status
++ panel_members.panel_id
++ panel_members.judge_id
++ panel_members.role_in_panel
++ panel_members.display_order
++ unique(panel_id, judge_id)
+```
+
+Why:
+
+- a panel is the real scoring unit
+- a judge does not score "the whole competition"
+- a judge scores through panel membership for a season and stage
+- `display_order` gives deterministic presentation order for future live views
+- `role_in_panel` supports chair/member distinctions now instead of bolting that on later
+
+One practical controller pattern:
+
+```php
+$panel->members()->sync(
+    collect($validated['members'])
+        ->mapWithKeys(fn (array $member): array => [
+            $member['judge_id'] => [
+                'role_in_panel' => $member['role_in_panel'],
+                'display_order' => $member['display_order'],
+            ],
+        ])
+        ->all(),
+);
+```
+
+Why this is the right Laravel shape:
+
+- panel membership is a pivot concern
+- `sync()` expresses replacement cleanly
+- it avoids manual delete/reinsert controller noise
+
+#### Rubrics and weighted criteria
+
+- [app/Models/Rubric.php](/Users/yonassayfu/Herd/Negadras/app/Models/Rubric.php)
+- [app/Models/RubricCriterion.php](/Users/yonassayfu/Herd/Negadras/app/Models/RubricCriterion.php)
+- [database/migrations/2026_03_19_110527_create_rubrics_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_110527_create_rubrics_table.php)
+- [database/migrations/2026_03_19_110527_create_rubric_criteria_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_110527_create_rubric_criteria_table.php)
+- [database/migrations/2026_03_19_110538_create_rubric_stage_bindings_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_110538_create_rubric_stage_bindings_table.php)
+- [database/migrations/2026_03_19_110538_create_rubric_industry_bindings_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_110538_create_rubric_industry_bindings_table.php)
+- [app/Http/Controllers/Admin/RubricManagementController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/RubricManagementController.php)
+- [resources/js/components/judging/RubricCriteriaEditor.vue](/Users/yonassayfu/Herd/Negadras/resources/js/components/judging/RubricCriteriaEditor.vue)
+
+Core additions:
+
+```diff
++ rubrics.total_weight
++ rubrics.is_active
++ rubric_criteria.max_score
++ rubric_criteria.weight
++ rubric_criteria.is_required
++ rubric_criteria.visibility_rule
++ rubric_criteria.help_text
+```
+
+Why:
+
+- Negadras scoring should not be a free-form comment box
+- a rubric defines the official evaluation language
+- criteria weights make aggregate scoring predictable and auditable
+- stage bindings and industry bindings let the same rubric architecture serve different rounds without hardcoding conditions in controllers
+
+Weight validation pattern:
+
+```php
+if (round($totalWeight, 2) > 100) {
+    throw ValidationException::withMessages([
+        'criteria' => 'Rubric criteria weight cannot exceed 100.',
+    ]);
+}
+```
+
+Why:
+
+- bad weight math breaks every downstream score
+- validating it centrally is safer than trusting frontend totals
+
+#### Panel submission assignment
+
+- [app/Models/PanelSubmissionAssignment.php](/Users/yonassayfu/Herd/Negadras/app/Models/PanelSubmissionAssignment.php)
+- [app/PanelSubmissionAssignmentStatus.php](/Users/yonassayfu/Herd/Negadras/app/PanelSubmissionAssignmentStatus.php)
+- [database/migrations/2026_03_19_110527_create_panel_submission_assignments_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_110527_create_panel_submission_assignments_table.php)
+- [app/Http/Controllers/Admin/PanelScoringController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/PanelScoringController.php)
+
+Key controller guard:
+
+```php
+if (! in_array($submission->status, [SubmissionStatus::Eligible, SubmissionStatus::Shortlisted], true)) {
+    throw ValidationException::withMessages([
+        'submission_id' => 'Only eligible or shortlisted submissions can enter a judging panel.',
+    ]);
+}
+```
+
+Why:
+
+- judging should not start from raw submitted records
+- the assignment is the operational handoff from screening/technical review into formal scoring
+- Phase 3 deliberately keeps this boundary explicit in code
+
+#### Score engine
+
+- [app/Support/ScoreEngine.php](/Users/yonassayfu/Herd/Negadras/app/Support/ScoreEngine.php)
+- [app/Models/ScoreEntry.php](/Users/yonassayfu/Herd/Negadras/app/Models/ScoreEntry.php)
+- [app/Models/JudgeComment.php](/Users/yonassayfu/Herd/Negadras/app/Models/JudgeComment.php)
+- [app/JudgeCommentType.php](/Users/yonassayfu/Herd/Negadras/app/JudgeCommentType.php)
+- [database/migrations/2026_03_19_110528_create_score_entries_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_110528_create_score_entries_table.php)
+- [database/migrations/2026_03_19_110538_create_judge_comments_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_110538_create_judge_comments_table.php)
+
+This file is the center of the phase.
+
+Main responsibilities:
+
+```diff
++ saveScores()
++ isLocked()
++ hasActiveConflict()
++ judgeProgress()
++ judgeTotal()
++ aggregateTotal()
++ allJudgesSubmitted()
+```
+
+Why one service:
+
+- scoring rules are easy to fragment
+- if lock checks, conflict checks, total calculation, and comment persistence live in different controllers, the judging workflow will drift
+- a single service keeps the scoring rules coherent
+
+Important save pattern:
+
+```php
+$entry = ScoreEntry::query()->updateOrCreate(
+    [
+        'panel_submission_assignment_id' => $assignment->id,
+        'judge_id' => $judge->id,
+        'rubric_criterion_id' => $criterion->id,
+    ],
+    [
+        'submission_id' => $assignment->submission_id,
+        'score_value' => $score['score_value'],
+        'comment' => $score['comment'] ?? null,
+        'submitted_at' => $submit ? now() : null,
+    ],
+);
+```
+
+Why:
+
+- draft and submit use the same persistence path
+- `updateOrCreate()` prevents duplicate criterion scores
+- judge progress can be computed directly from stored entries
+
+Important fix during this phase:
+
+```diff
+- checked allJudgesSubmitted() against stale loaded scoreEntries
++ refreshed scoreEntries before completion checks
+```
+
+Why:
+
+- without refreshing the relation, the assignment stayed in `scoring` even after the final judge submitted
+- this is a classic Eloquent state-staleness issue in write-heavy flows
+
+#### Conflict declarations
+
+- [app/Models/ConflictOfInterestDeclaration.php](/Users/yonassayfu/Herd/Negadras/app/Models/ConflictOfInterestDeclaration.php)
+- [app/ConflictOfInterestType.php](/Users/yonassayfu/Herd/Negadras/app/ConflictOfInterestType.php)
+- [app/ConflictOfInterestStatus.php](/Users/yonassayfu/Herd/Negadras/app/ConflictOfInterestStatus.php)
+- [database/migrations/2026_03_19_110520_create_conflict_of_interest_declarations_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_110520_create_conflict_of_interest_declarations_table.php)
+- [app/Http/Requests/StoreConflictDeclarationRequest.php](/Users/yonassayfu/Herd/Negadras/app/Http/Requests/StoreConflictDeclarationRequest.php)
+- [app/Http/Requests/Admin/UpdateConflictDeclarationRequest.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/PanelScoringController.php)
+
+Why:
+
+- conflict handling must be workflow state, not a free-text note
+- once a conflict is active, `ScoreEngine::hasActiveConflict()` blocks scoring
+- manager/admin review of the declaration is separated from judge declaration itself
+
+Business effect:
+
+- judges can safely declare before scoring
+- admin can resolve or keep the conflict active
+- the system can prove why a judge could not continue
+
+#### Score locking and visibility history
+
+- [app/Models/ScoreLock.php](/Users/yonassayfu/Herd/Negadras/app/Models/ScoreLock.php)
+- [app/Models/ScoreVisibilityEvent.php](/Users/yonassayfu/Herd/Negadras/app/Models/ScoreVisibilityEvent.php)
+- [app/ScoreVisibilityAction.php](/Users/yonassayfu/Herd/Negadras/app/ScoreVisibilityAction.php)
+- [database/migrations/2026_03_19_110538_create_score_locks_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_110538_create_score_locks_table.php)
+- [database/migrations/2026_03_19_110538_create_score_visibility_events_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_110538_create_score_visibility_events_table.php)
+
+Why:
+
+- Negadras needs two separate audit concepts:
+  - is scoring editable?
+  - who revealed or hid scoring visibility?
+- those are related but not the same event stream
+
+Lock update flow:
+
+```diff
++ lock => create ScoreLock, set assignment status locked, mark score entries locked
++ unlock => store reopen reason, reopen actor, clear score-entry lock flags
+```
+
+Why:
+
+- lock/reopen history should not disappear when the current lock state changes
+- the record needs both the original lock and the reopen metadata
+
+#### Judge workspace
+
+- [app/Http/Controllers/JudgeWorkspaceController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/JudgeWorkspaceController.php)
+- [resources/js/pages/judges/Index.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/judges/Index.vue)
+- [resources/js/pages/judges/Show.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/judges/Show.vue)
+
+The judge side now has two real surfaces:
+
+- assignment queue
+- scoring detail
+
+Important ownership rule:
+
+```php
+private function judgeOwnsAssignment(Judge $judge, PanelSubmissionAssignment $assignment): bool
+{
+    return $assignment->panel()
+        ->whereHas('members', fn ($query) => $query->where('judge_id', $judge->id))
+        ->exists();
+}
+```
+
+Why:
+
+- a judge must never score by route guessing
+- panel membership is the real access control
+- this rule is stronger than a sidebar permission check
+
+Judge detail now exposes:
+
+- rubric criteria
+- existing criterion scores
+- private comment
+- presenter-visible comment
+- aggregate score
+- submission files
+- active conflict declarations
+
+#### Admin scoring operations surface
+
+- [resources/js/pages/admin/Panels/Show.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/Panels/Show.vue)
+- [resources/js/pages/admin/Panels/Scoring.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/Panels/Scoring.vue)
+- [resources/js/components/judging/PanelMembersEditor.vue](/Users/yonassayfu/Herd/Negadras/resources/js/components/judging/PanelMembersEditor.vue)
+
+Why:
+
+- managers need one place to see:
+  - judge progress
+  - judge totals
+  - conflicts
+  - locks
+  - visibility events
+- this page is the operational judging console before Phase 4 live-session tooling exists
+
+Frontend note:
+
+- the Wayfinder imports here had to be corrected after generation
+- route helpers for nested endpoints must come from the generated nested path, not the top-level route barrel
+
+Example fix:
+
+```diff
+- import { visibility } from '@/routes/panel-scoring'
++ import { store as visibilityStore } from '@/routes/panel-scoring/visibility'
+```
+
+Why:
+
+- this repo uses Wayfinder-generated route functions
+- wrong import paths compile badly and then surface as build failures
+
+### Tests added
+
+- [tests/Feature/JudgeManagementTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/JudgeManagementTest.php)
+- [tests/Feature/PanelRubricManagementTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/PanelRubricManagementTest.php)
+- [tests/Feature/JudgeWorkspaceScoringTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/JudgeWorkspaceScoringTest.php)
+- [tests/Feature/ConflictOfInterestTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/ConflictOfInterestTest.php)
+
+What they prove:
+
+- admin can manage judge profiles
+- admin can build panels and bind rubrics
+- judges can only score assigned submissions
+- active conflict blocks scoring
+- locked scoring cannot be edited
+- presenter-visible comments persist
+- aggregate scoring and progress logic behave as expected
+
+### Laravel takeaways from this phase
+
+1. When a workflow becomes rule-heavy, move it into a service before the controllers drift apart.
+2. Membership-based access control is often the real rule, not just role-based access control.
+3. Persist workflow history separately when the business meaning differs. Lock history and visibility history are not the same log.
+4. In Inertia + Wayfinder apps, route-generation mistakes usually show up first in `types:check` or build, not in PHP tests.
+5. After write-heavy service work, refresh loaded relations before computing derived workflow state.
+
+### Practical Negadras result
+
+At the end of this phase:
+
+- judges now exist as real workflow actors
+- panels can be created and staffed
+- rubrics and weighted criteria are operational
+- eligible/shortlisted submissions can enter a scoring panel
+- judges can score privately with progress tracking
+- conflicts, locks, reopen reasons, and visibility changes are auditable
+
+What is intentionally still outside this phase:
+
+- live session scheduling and operator controls
+- real-time score broadcasting
+- tablet-first live judging layout
+- public reveal/projection workflow
+- final ranking, awards, and archive publication

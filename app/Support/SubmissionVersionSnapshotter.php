@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Submission;
+use App\Models\SubmissionFile;
 use App\Models\SubmissionVersion;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -75,6 +76,19 @@ class SubmissionVersionSnapshotter
                 'id' => $submission->organization?->id,
                 'display_name' => $submission->organization?->display_name,
             ],
+            'files' => $submission->files()
+                ->whereNull('submission_version_id')
+                ->latest('uploaded_at')
+                ->get()
+                ->map(fn (SubmissionFile $file): array => [
+                    'file_type' => $file->file_type,
+                    'original_name' => $file->original_name,
+                    'mime_type' => $file->mime_type,
+                    'file_size' => $file->file_size,
+                    'is_required' => $file->is_required,
+                ])
+                ->values()
+                ->all(),
         ];
     }
 }

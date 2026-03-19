@@ -22,6 +22,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PublicPageController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\SubmissionController;
+use App\Http\Controllers\SubmissionFileController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
 
@@ -49,6 +50,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('submissions/{submission}', [SubmissionController::class, 'update'])->name('submissions.update');
 
     Route::delete('submissions/{submission}', [SubmissionController::class, 'destroy'])->name('submissions.destroy');
+
+    Route::post('submissions/{submission}/files', [SubmissionFileController::class, 'store'])->name('submission-files.store');
+
+    Route::get('submission-files/{submissionFile}/download', [SubmissionFileController::class, 'download'])->name('submission-files.download');
+
+    Route::delete('submission-files/{submissionFile}', [SubmissionFileController::class, 'destroy'])->name('submission-files.destroy');
 
     Route::get('search', GlobalSearchController::class)
         ->middleware('permission:search.view')

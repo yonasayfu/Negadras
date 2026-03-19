@@ -2,15 +2,17 @@
 import { Head, Link } from '@inertiajs/vue3';
 import { ArrowLeft } from 'lucide-vue-next';
 import StatusBadge from '@/components/admin/StatusBadge.vue';
+import SubmissionFilesPanel from '@/components/submissions/SubmissionFilesPanel.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { index as adminSubmissionsIndex } from '@/routes/admin-submissions';
-import type { BreadcrumbItem, ManagedSubmission } from '@/types';
+import type { BreadcrumbItem, ManagedSubmission, SubmissionFileDefinition } from '@/types';
 
 type Props = {
     submission: ManagedSubmission;
+    submissionFileDefinitions?: SubmissionFileDefinition[];
 };
 
 const props = defineProps<Props>();
@@ -157,6 +159,13 @@ const breadcrumbs: BreadcrumbItem[] = [
                     </div>
                 </aside>
             </div>
+
+            <SubmissionFilesPanel
+                :submission-id="submission.id"
+                :definitions="submissionFileDefinitions ?? []"
+                :draft-files="submission.draftFiles ?? []"
+                :current-version-files="submission.currentVersionFiles ?? []"
+            />
         </PageContainer>
     </AppLayout>
 </template>

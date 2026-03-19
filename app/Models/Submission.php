@@ -82,6 +82,11 @@ class Submission extends Model
         return $this->hasMany(SubmissionVersion::class)->latest('version_no');
     }
 
+    public function files(): HasMany
+    {
+        return $this->hasMany(SubmissionFile::class)->latest('uploaded_at');
+    }
+
     public function scopeDraft(Builder $query): Builder
     {
         return $query->where('status', SubmissionStatus::Draft);

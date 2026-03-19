@@ -10,8 +10,11 @@ use App\Models\Organization;
 use App\Models\Season;
 use App\Models\Stage;
 use App\Models\Submission;
+use App\Models\SubmissionFile;
 use App\SubmissionStatus;
 use App\Support\ActivityLogger;
+use App\Support\SubmissionFileBinder;
+use App\Support\SubmissionFileRegistry;
 use App\Support\SubmissionVersionSnapshotter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -58,11 +61,15 @@ class SubmissionController extends Controller
             'stageOptions' => $this->stageOptions(),
             'industryOptions' => $this->industryOptions(),
             'organizationOptions' => $this->organizationOptions($applicant),
+            'submissionFileDefinitions' => $this->submissionFileDefinitions(),
         ]);
     }
 
-    public function store(StoreSubmissionRequest $request, SubmissionVersionSnapshotter $snapshotter): RedirectResponse
-    {
+    public function store(
+        StoreSubmissionRequest $request,
+        SubmissionVersionSnapshotter $snapshotter,
+        SubmissionFileBinder $fileBinder,
+    ): RedirectResponse {
         $this->authorize('create', Submission::class);
 
         $applicant = $request->user()?->applicant;
@@ -78,11 +85,13 @@ class SubmissionController extends Controller
         ]);
 
         if ($intent === 'submit') {
-            $snapshotter->createSnapshot(
+            $version = $snapshotter->createSnapshot(
                 submission: $submission,
                 actor: $request->user(),
                 changeNote: 'Initial final submission.',
             );
+
+            $fileBinder->bindDraftFilesToVersion($submission, $version);
         }
 
         ActivityLogger::record(
@@ -116,10 +125,13 @@ class SubmissionController extends Controller
             'organization:id,display_name',
             'currentVersion:id,submission_id,version_no,created_by,change_note,is_locked,created_at',
             'versions.creator:id,name',
+            'files.version:id,version_no',
+            'files.uploadedBy:id,name',
         ]);
 
         return Inertia::render('submissions/Show', [
             'submission' => $this->submissionDetail($submission),
+            'submissionFileDefinitions' => $this->submissionFileDefinitions(),
         ]);
     }
 
@@ -134,16 +146,25 @@ class SubmissionController extends Controller
                 'industry:id,name',
                 'applicant:id,full_name,email',
                 'organization:id,display_name',
+                'currentVersion:id,submission_id,version_no,created_by,change_note,is_locked,created_at',
+                'versions.creator:id,name',
+                'files.version:id,version_no',
+                'files.uploadedBy:id,name',
             ])),
             'seasonOptions' => $this->seasonOptions(),
             'stageOptions' => $this->stageOptions(),
             'industryOptions' => $this->industryOptions(),
             'organizationOptions' => $this->organizationOptions($submission->applicant),
+            'submissionFileDefinitions' => $this->submissionFileDefinitions(),
         ]);
     }
 
-    public function update(UpdateSubmissionRequest $request, Submission $submission, SubmissionVersionSnapshotter $snapshotter): RedirectResponse
-    {
+    public function update(
+        UpdateSubmissionRequest $request,
+        Submission $submission,
+        SubmissionVersionSnapshotter $snapshotter,
+        SubmissionFileBinder $fileBinder,
+    ): RedirectResponse {
         $this->authorize('update', $submission);
 
         $intent = $request->validated('intent');
@@ -159,13 +180,15 @@ class SubmissionController extends Controller
         ]);
 
         if ($intent === 'submit') {
-            $snapshotter->createSnapshot(
+            $version = $snapshotter->createSnapshot(
                 submission: $submission->fresh(),
                 actor: $request->user(),
                 changeNote: $wasReturned
                     ? 'Presenter resubmitted after correction.'
                     : ($wasPreviouslySubmitted ? 'Presenter submitted a new revision.' : 'Presenter finalized the submission draft.'),
             );
+
+            $fileBinder->bindDraftFilesToVersion($submission->fresh(), $version);
         }
 
         ActivityLogger::record(
@@ -314,6 +337,16 @@ class SubmissionController extends Controller
             'isPublicAfterApproval' => $submission->is_public_after_approval,
             'currentVersionNumber' => $submission->currentVersion?->version_no,
             'versionCount' => $submission->versions->count(),
+            'draftFiles' => $submission->files
+                ->whereNull('submission_version_id')
+                ->map(fn (SubmissionFile $file): array => $this->submissionFileSummary($file))
+                ->values()
+                ->all(),
+            'currentVersionFiles' => $submission->files
+                ->where('submission_version_id', $submission->current_version_id)
+                ->map(fn (SubmissionFile $file): array => $this->submissionFileSummary($file))
+                ->values()
+                ->all(),
             'versionHistory' => $submission->versions
                 ->map(fn ($version): array => [
                     'id' => $version->id,
@@ -328,6 +361,46 @@ class SubmissionController extends Controller
                 ])
                 ->values()
                 ->all(),
+        ];
+    }
+
+    /**
+     * @return array<int, array{type: string, label: string, description: string, required: bool, multiple: bool, accept: string}>
+     */
+    private function submissionFileDefinitions(): array
+    {
+        return collect(SubmissionFileRegistry::definitions())
+            ->map(fn (array $definition, string $type): array => [
+                'type' => $type,
+                'label' => $definition['label'],
+                'description' => $definition['description'],
+                'required' => $definition['required'],
+                'multiple' => $definition['multiple'],
+                'accept' => $definition['accept'],
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function submissionFileSummary(SubmissionFile $file): array
+    {
+        return [
+            'id' => $file->id,
+            'fileType' => $file->file_type,
+            'fileTypeLabel' => SubmissionFileRegistry::definition($file->file_type)['label'] ?? $file->file_type,
+            'originalName' => $file->original_name,
+            'mimeType' => $file->mime_type,
+            'fileSize' => $file->file_size,
+            'description' => $file->description,
+            'downloadUrl' => route('submission-files.download', $file),
+            'isRequired' => $file->is_required,
+            'isVerified' => $file->is_verified,
+            'uploadedAt' => $file->uploaded_at?->toDateTimeString(),
+            'uploadedBy' => $file->uploadedBy?->name,
+            'versionNumber' => $file->version?->version_no,
         ];
     }
 }

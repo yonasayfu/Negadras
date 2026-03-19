@@ -162,6 +162,8 @@ export type ManagedSubmission = {
     isPublicAfterApproval?: boolean;
     currentVersionNumber?: number | null;
     versionCount?: number;
+    draftFiles?: ManagedSubmissionFile[];
+    currentVersionFiles?: ManagedSubmissionFile[];
     versionHistory?: SubmissionVersionEntry[];
 };
 
@@ -175,6 +177,31 @@ export type SubmissionVersionEntry = {
     isCurrent: boolean;
     snapshotTitle: string;
     snapshotStatus: string;
+};
+
+export type SubmissionFileDefinition = {
+    type: string;
+    label: string;
+    description: string;
+    required: boolean;
+    multiple: boolean;
+    accept: string;
+};
+
+export type ManagedSubmissionFile = {
+    id: number;
+    fileType: string;
+    fileTypeLabel: string;
+    originalName: string;
+    mimeType: string | null;
+    fileSize: number;
+    description: string | null;
+    downloadUrl: string;
+    isRequired: boolean;
+    isVerified: boolean;
+    uploadedAt: string | null;
+    uploadedBy: string | null;
+    versionNumber: number | null;
 };
 
 export type SubmissionStageOption = {

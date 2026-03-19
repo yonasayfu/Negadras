@@ -1788,3 +1788,435 @@ What they prove:
 3. `current_version_id` is a convenience pointer, not a substitute for a real history table.
 4. Store enough relational context in the snapshot so later changes to master records do not erase the original submitted meaning.
 5. Version history is useful only if both the presenter side and the staff side can read it in the right context.
+## Entry 005: Phase N1 Step 5 - Submission File Upload Foundation
+
+### Scope
+
+This batch added the first real attachment system for Negadras submissions:
+
+- `submission_files`
+- private file storage
+- upload, list, replace, delete, download
+- required vs optional file categories
+- version binding from draft files into locked submission versions
+
+The key design rule for this phase was:
+
+- files must belong to the submission workflow
+- locked history must stay intact
+- drafts can change, versions cannot
+
+### Architecture decision
+
+I did **not** reuse the generic media library table for submission attachments.
+
+Why:
+
+- the generic media library is useful for broad business uploads
+- submission attachments have stricter workflow rules
+- they need:
+  - `submission_id`
+  - optional `submission_version_id`
+  - required/optional category logic
+  - presenter ownership rules
+  - locked-version protection
+
+So the correct Negadras design is a dedicated `submission_files` table plus a small registry/service layer.
+
+### Files and why they changed
+
+#### [database/migrations/2026_03_19_061917_create_submission_files_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_061917_create_submission_files_table.php)
+
+Before:
+
+```diff
+- file did not exist
+```
+
+After:
+
+```diff
++ $table->foreignId('submission_id')->constrained()->cascadeOnDelete();
++ $table->foreignId('submission_version_id')->nullable()->constrained('submission_versions')->nullOnDelete();
++ $table->string('file_type');
++ $table->string('disk')->default('local');
++ $table->string('original_name');
++ $table->string('file_path');
++ $table->string('mime_type')->nullable();
++ $table->unsignedBigInteger('file_size')->default(0);
++ $table->text('description')->nullable();
++ $table->foreignId('uploaded_by')->nullable()->constrained('users')->nullOnDelete();
++ $table->timestamp('uploaded_at')->nullable();
++ $table->boolean('is_required')->default(false);
++ $table->boolean('is_verified')->default(false);
+```
+
+Why:
+
+- `submission_id` ties the file to the live submission record
+- `submission_version_id` lets a file become part of an immutable historical version later
+- `disk` keeps storage configurable
+- `is_required` and `is_verified` prepare both intake completeness and later secretary review
+
+The important modeling decision is:
+
+- draft file = `submission_version_id = null`
+- locked historical file = `submission_version_id = some version id`
+
+That split is what makes draft editing and historical integrity coexist.
+
+#### [app/Models/SubmissionFile.php](/Users/yonassayfu/Herd/Negadras/app/Models/SubmissionFile.php)
+
+Before:
+
+```diff
+- file did not exist
+```
+
+After:
+
+```diff
++ class SubmissionFile extends Model
++ public function submission(): BelongsTo
++ public function version(): BelongsTo
++ public function uploadedBy(): BelongsTo
++ public function typeLabel(): string
+```
+
+Why:
+
+- this model is the center of file ownership and authorization
+- `typeLabel()` avoids scattering category labels across controllers and Vue pages
+- the `version()` relation is what lets the UI show `Version v1`, `Version v2`, and so on
+
+#### [app/Support/SubmissionFileRegistry.php](/Users/yonassayfu/Herd/Negadras/app/Support/SubmissionFileRegistry.php)
+
+Before:
+
+```diff
+- file did not exist
+```
+
+After:
+
+```diff
++ 'application_pdf' => ['required' => true, 'multiple' => false, ...]
++ 'pitch_deck' => ['required' => true, 'multiple' => false, ...]
++ 'pitch_video' => ['required' => false, 'multiple' => false, ...]
++ 'gallery_image' => ['required' => false, 'multiple' => true, ...]
++ 'business_document' => ['required' => false, 'multiple' => true, ...]
+```
+
+Why:
+
+- Negadras needs category rules in one backend-owned place
+- the UI should not invent what file types exist
+- validation should not hardcode mime rules in multiple requests
+
+This registry now answers:
+
+- what categories exist
+- which are required
+- whether replacement or multiple upload is allowed
+- what mime/extensions are allowed
+- what max size applies
+
+That makes later changes safer. If Negadras changes a required document type, the change belongs here first.
+
+#### [app/Support/SubmissionFileBinder.php](/Users/yonassayfu/Herd/Negadras/app/Support/SubmissionFileBinder.php)
+
+Before:
+
+```diff
+- file did not exist
+```
+
+After:
+
+```diff
++ public function bindDraftFilesToVersion(Submission $submission, SubmissionVersion $version): void
++ {
++     $submission->files()
++         ->whereNull('submission_version_id')
++         ->update(['submission_version_id' => $version->id]);
++ }
+```
+
+Why:
+
+- this is the key bridge between editable draft uploads and immutable versions
+- the snapshotter creates the submission version record
+- the binder attaches the current draft files to that version
+
+Without this service, file history would drift away from submission history.
+
+#### [app/Http/Requests/StoreSubmissionFileRequest.php](/Users/yonassayfu/Herd/Negadras/app/Http/Requests/StoreSubmissionFileRequest.php)
+
+What changed:
+
+```diff
++ 'file_type' => ['required', 'string', Rule::in(array_keys(SubmissionFileRegistry::definitions()))]
++ 'file' => ['required', 'file', 'mimes:...dynamic...', 'max:...dynamic...']
++ 'description' => ['nullable', 'string', 'max:1000']
+```
+
+Why:
+
+- file validation must depend on the selected category
+- `application_pdf` should not accept image mime types
+- `gallery_image` should not accept PDFs
+
+This request is also where the controller gets simplified:
+
+- controller handles storage and persistence
+- request handles input legitimacy
+
+#### [app/Policies/SubmissionFilePolicy.php](/Users/yonassayfu/Herd/Negadras/app/Policies/SubmissionFilePolicy.php)
+
+Why this file matters:
+
+- presenters can only manage files for their own editable submissions
+- staff with `submissions.view` or `submissions.update` can access through policy
+- private downloads are not just hidden UI links; they are route-protected
+
+Important rule:
+
+```diff
++ presenter delete allowed only when parent submission is editable
++ locked version files cannot be deleted
+```
+
+So even if the user knows a download or delete URL, authorization still holds.
+
+#### [app/Http/Controllers/SubmissionFileController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/SubmissionFileController.php)
+
+This file is the main operational controller for submission attachments.
+
+What it now does:
+
+```diff
++ store()
++ download()
++ destroy()
+```
+
+Key behavior in `store()`:
+
+```diff
++ if the file category is single-file:
++     delete any existing unversioned file for that category
++     remove old physical file from storage
++ store the new file under:
++     negadras/submissions/{submission_id}/{file_type}
++ create submission_files row with uploaded_by/uploaded_at/is_required
+```
+
+Why:
+
+- single-file categories need replace behavior, not duplicate stacking
+- multi-file categories like gallery images should accumulate
+- storage path structure should stay predictable for operations and debugging
+
+Key behavior in `destroy()`:
+
+```diff
++ abort_if($submissionFile->submission_version_id !== null, 403, 'Locked version files cannot be deleted.')
+```
+
+Why:
+
+- once a file belongs to a locked submission version, it becomes historical evidence
+- deletion at that point would corrupt the version record
+
+#### [app/Support/SubmissionVersionSnapshotter.php](/Users/yonassayfu/Herd/Negadras/app/Support/SubmissionVersionSnapshotter.php)
+
+What changed:
+
+```diff
++ 'files' => $submission->files()
++     ->whereNull('submission_version_id')
++     ->get()
++     ->map(...)
+```
+
+Why:
+
+- the snapshot now stores a file summary alongside text fields
+- later reviewers or judges can know which categories existed at submission time
+- even if UI rendering changes later, the version snapshot still preserves the submitted state
+
+This is not the physical file copy. It is the metadata snapshot that belongs in the version JSON.
+
+#### [app/Http/Controllers/SubmissionController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/SubmissionController.php)
+
+This was the most important integration point.
+
+Before:
+
+```diff
+- submission create/edit/show only dealt with narrative fields and version history
+- final submit created a version snapshot but had no file-binding step
+```
+
+After:
+
+```diff
++ create/edit/show now pass submissionFileDefinitions
++ show/edit now eager load files.version and files.uploadedBy
++ submissionDetail() now returns draftFiles and currentVersionFiles
++ final submit now:
++     $version = $snapshotter->createSnapshot(...)
++     $fileBinder->bindDraftFilesToVersion($submission, $version)
+```
+
+Why:
+
+- the presenter pages need both the editable draft file set and the current locked file set
+- final submit must move draft files into the version boundary immediately
+
+This is the real business rule of the whole phase:
+
+- the live submission can still evolve
+- the locked version is the official submitted package
+
+#### [app/Http/Controllers/Admin/SubmissionManagementController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/SubmissionManagementController.php)
+
+What changed:
+
+```diff
++ show() now loads files.version and files.uploadedBy
++ returns draftFiles
++ returns currentVersionFiles
++ returns submissionFileDefinitions
+```
+
+Why:
+
+- staff needs visibility into what is merely drafted versus what is officially locked
+- intake and later screening phases depend on this distinction
+
+This keeps admin and presenter views aligned without duplicating business logic in Vue.
+
+#### [resources/js/components/submissions/SubmissionFilesPanel.vue](/Users/yonassayfu/Herd/Negadras/resources/js/components/submissions/SubmissionFilesPanel.vue)
+
+Before:
+
+```diff
+- file did not exist
+```
+
+After:
+
+```diff
++ one reusable panel renders all file categories
++ draft files section
++ current locked version files section
++ per-category upload controls
++ delete draft file action
++ download action
++ required/optional badge
++ single/multiple badge
++ private storage explanation
+```
+
+Why:
+
+- the upload UI should not be duplicated in presenter edit, presenter show, and admin show pages
+- one component keeps category rendering and file actions consistent
+
+This is also where the UX rule became clear:
+
+- presenters manage draft files in edit mode
+- presenter show page is read-only
+- admin show page is read-only but fully visible
+
+#### Vue page integrations
+
+- [resources/js/pages/submissions/Edit.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/submissions/Edit.vue)
+- [resources/js/pages/submissions/Show.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/submissions/Show.vue)
+- [resources/js/pages/admin/Submissions/Show.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/Submissions/Show.vue)
+
+What changed:
+
+```diff
++ each page now mounts SubmissionFilesPanel
++ edit page passes can-manage
++ show pages render the same grouped file data in read-only mode
+```
+
+Why:
+
+- the submission pages now explain the real attachment state
+- file visibility is part of the submission record, not a separate hidden module
+
+#### [resources/js/types/admin.ts](/Users/yonassayfu/Herd/Negadras/resources/js/types/admin.ts)
+
+What changed:
+
+```diff
++ type SubmissionFileDefinition
++ type ManagedSubmissionFile
++ ManagedSubmission now includes draftFiles and currentVersionFiles
+```
+
+Why:
+
+- strong typing is what keeps Inertia controller payloads and Vue rendering aligned
+- once the payload shape became richer, the frontend types needed to become explicit too
+
+#### [tests/Feature/SubmissionFileFlowTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/SubmissionFileFlowTest.php)
+
+This test file proves the presenter-side business rules:
+
+```diff
++ upload file
++ replace single-file category
++ final submit binds files to current version
++ unauthorized presenter download is forbidden
+```
+
+Why:
+
+- file uploads are one of the easiest places to introduce security gaps
+- this test guards private download access and version binding
+
+#### [tests/Feature/Admin/SubmissionFileManagementTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/Admin/SubmissionFileManagementTest.php)
+
+What it proves:
+
+```diff
++ manager can download an authorized submission file through the private route
+```
+
+Why:
+
+- staff visibility must be explicit
+- Negadras later depends on managers/secretaries inspecting intake files without turning storage public
+
+### Laravel takeaways from this phase
+
+1. Use a dedicated domain table when workflow rules differ from the generic media library.
+2. Separate draft state from locked historical state with a nullable foreign key boundary.
+3. Put file-category rules in a backend registry, not scattered across forms.
+4. Private storage is only useful if download routes are policy-protected.
+5. Submission versioning is incomplete unless files are bound into the same version boundary.
+
+### Practical Negadras result
+
+At the end of this phase:
+
+- a presenter can upload required and optional submission files
+- single-file categories can be replaced cleanly
+- files are stored privately
+- authorized users can download them
+- final submit binds the draft files into the current locked version
+- presenter and admin submission detail pages can both inspect the file state clearly
+
+What is still intentionally not done in this phase:
+
+- video link support as an alternative to upload
+- secretary verification actions
+- required-file completeness gate during intake status transitions
+- file review notes per attachment
+
+Those belong to later intake/review phases, not this storage foundation phase.

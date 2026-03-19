@@ -5,6 +5,7 @@ import { computed } from 'vue';
 import ConfirmActionDialog from '@/components/admin/ConfirmActionDialog.vue';
 import FormSection from '@/components/admin/FormSection.vue';
 import InputError from '@/components/InputError.vue';
+import SubmissionFilesPanel from '@/components/submissions/SubmissionFilesPanel.vue';
 import StatusBadge from '@/components/admin/StatusBadge.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import PageHeader from '@/components/PageHeader.vue';
@@ -15,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { destroy as destroySubmission, edit as editSubmission, index as submissionsIndex, show as showSubmission, update as updateSubmission } from '@/routes/submissions';
-import type { BreadcrumbItem, ManagedSubmission, SelectOption, SubmissionStageOption } from '@/types';
+import type { BreadcrumbItem, ManagedSubmission, SelectOption, SubmissionFileDefinition, SubmissionStageOption } from '@/types';
 
 type Props = {
     submission: ManagedSubmission;
@@ -23,6 +24,7 @@ type Props = {
     stageOptions: SubmissionStageOption[];
     industryOptions: SelectOption[];
     organizationOptions: SelectOption[];
+    submissionFileDefinitions: SubmissionFileDefinition[];
 };
 
 const props = defineProps<Props>();
@@ -250,6 +252,14 @@ const deleteDraft = (): void => {
                     </div>
                 </div>
             </form>
+
+            <SubmissionFilesPanel
+                :submission-id="submission.id"
+                :definitions="submissionFileDefinitions"
+                :draft-files="submission.draftFiles ?? []"
+                :current-version-files="submission.currentVersionFiles ?? []"
+                can-manage
+            />
         </PageContainer>
     </AppLayout>
 </template>

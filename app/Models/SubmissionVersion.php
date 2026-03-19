@@ -6,6 +6,7 @@ use Database\Factories\SubmissionVersionFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SubmissionVersion extends Model
 {
@@ -43,5 +44,10 @@ class SubmissionVersion extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function files(): HasMany
+    {
+        return $this->hasMany(SubmissionFile::class, 'submission_version_id')->latest('uploaded_at');
     }
 }

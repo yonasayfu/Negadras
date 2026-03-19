@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Submission;
+use App\Models\SubmissionFile;
+use App\Support\SubmissionFileRegistry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -64,6 +66,8 @@ class SubmissionManagementController extends Controller
             'organization:id,display_name',
             'currentVersion:id,submission_id,version_no,created_by,change_note,is_locked,created_at',
             'versions.creator:id,name',
+            'files.version:id,version_no',
+            'files.uploadedBy:id,name',
         ]);
 
         return Inertia::render('admin/Submissions/Show', [
@@ -78,6 +82,16 @@ class SubmissionManagementController extends Controller
                 'isPublicAfterApproval' => $submission->is_public_after_approval,
                 'currentVersionNumber' => $submission->currentVersion?->version_no,
                 'versionCount' => $submission->versions->count(),
+                'draftFiles' => $submission->files
+                    ->whereNull('submission_version_id')
+                    ->map(fn (SubmissionFile $file): array => $this->submissionFileSummary($file))
+                    ->values()
+                    ->all(),
+                'currentVersionFiles' => $submission->files
+                    ->where('submission_version_id', $submission->current_version_id)
+                    ->map(fn (SubmissionFile $file): array => $this->submissionFileSummary($file))
+                    ->values()
+                    ->all(),
                 'versionHistory' => $submission->versions
                     ->map(fn ($version): array => [
                         'id' => $version->id,
@@ -93,6 +107,7 @@ class SubmissionManagementController extends Controller
                     ->values()
                     ->all(),
             ],
+            'submissionFileDefinitions' => $this->submissionFileDefinitions(),
         ]);
     }
 
@@ -116,5 +131,45 @@ class SubmissionManagementController extends Controller
             'submittedAt' => $submission->submitted_at?->toDateTimeString(),
             'updatedAt' => $submission->updated_at?->toDateTimeString(),
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function submissionFileSummary(SubmissionFile $file): array
+    {
+        return [
+            'id' => $file->id,
+            'fileType' => $file->file_type,
+            'fileTypeLabel' => SubmissionFileRegistry::definition($file->file_type)['label'] ?? $file->file_type,
+            'originalName' => $file->original_name,
+            'mimeType' => $file->mime_type,
+            'fileSize' => $file->file_size,
+            'description' => $file->description,
+            'downloadUrl' => route('submission-files.download', $file),
+            'isRequired' => $file->is_required,
+            'isVerified' => $file->is_verified,
+            'uploadedAt' => $file->uploaded_at?->toDateTimeString(),
+            'uploadedBy' => $file->uploadedBy?->name,
+            'versionNumber' => $file->version?->version_no,
+        ];
+    }
+
+    /**
+     * @return array<int, array{type: string, label: string, description: string, required: bool, multiple: bool, accept: string}>
+     */
+    private function submissionFileDefinitions(): array
+    {
+        return collect(SubmissionFileRegistry::definitions())
+            ->map(fn (array $definition, string $type): array => [
+                'type' => $type,
+                'label' => $definition['label'],
+                'description' => $definition['description'],
+                'required' => $definition['required'],
+                'multiple' => $definition['multiple'],
+                'accept' => $definition['accept'],
+            ])
+            ->values()
+            ->all();
     }
 }

@@ -218,27 +218,27 @@ This part is important because later phases will need revision history.
 
 ### F1. Submission Files Table
 
-* [ ] Create `submission_files` migration
-* [ ] Add fields: `submission_id`, `submission_version_id`, `file_type`, `original_name`, `file_path`, `mime_type`, `file_size`, `description`, `uploaded_by`, `uploaded_at`, `is_required`, `is_verified`
-* [ ] Create SubmissionFile model
-* [ ] Configure storage disk
-* [ ] Decide file visibility: private or public
-* [ ] Add file upload component in Vue
-* [ ] Support PDF upload
-* [ ] Support image upload
+* [x] Create `submission_files` migration
+* [x] Add fields: `submission_id`, `submission_version_id`, `file_type`, `original_name`, `file_path`, `mime_type`, `file_size`, `description`, `uploaded_by`, `uploaded_at`, `is_required`, `is_verified`
+* [x] Create SubmissionFile model
+* [x] Configure storage disk
+* [x] Decide file visibility: private or public
+* [x] Add file upload component in Vue
+* [x] Support PDF upload
+* [x] Support image upload
 * [ ] Support video link or video upload decision
-* [ ] Add file delete/replace flow
-* [ ] Show uploaded file list in submission page
-* [ ] Add file type validation
-* [ ] Add file size validation
-* [ ] Add download/open action with authorization checks
+* [x] Add file delete/replace flow
+* [x] Show uploaded file list in submission page
+* [x] Add file type validation
+* [x] Add file size validation
+* [x] Add download/open action with authorization checks
 
 ### F2. File Rules
 
-* [ ] Define required file types for Negadras submission
-* [ ] Add required/optional label per file section
-* [ ] Add secretary verification field later-ready
-* [ ] Show file verification status placeholder
+* [x] Define required file types for Negadras submission
+* [x] Add required/optional label per file section
+* [x] Add secretary verification field later-ready
+* [x] Show file verification status placeholder
 
 ---
 

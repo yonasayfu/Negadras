@@ -173,26 +173,26 @@ Do **not** start reviewers, judges, scores, AI, live dashboard, or archives yet.
 
 ### D1. Submission Main Table
 
-* [ ] Create `submissions` migration
-* [ ] Add fields: `season_id`, `current_stage_id`, `industry_id`, `applicant_id`, `organization_id`, `title`, `summary`, `problem_statement`, `solution_description`, `business_model`, `status`, `submitted_at`, `is_public_after_approval`, `current_version_id`
-* [ ] Create Submission model
-* [ ] Define relationships with season, stage, industry, applicant, organization
-* [ ] Create submission status enum or constants
-* [ ] Add model scopes like `draft`, `submitted`, `eligible`
-* [ ] Create submission create page
-* [ ] Create submission edit page
-* [ ] Create submission detail/show page
-* [ ] Add presenter-only ownership policy
-* [ ] Add admin/manager/secretary access policy
+* [x] Create `submissions` migration
+* [x] Add fields: `season_id`, `current_stage_id`, `industry_id`, `applicant_id`, `organization_id`, `title`, `summary`, `problem_statement`, `solution_description`, `business_model`, `status`, `submitted_at`, `is_public_after_approval`, `current_version_id`
+* [x] Create Submission model
+* [x] Define relationships with season, stage, industry, applicant, organization
+* [x] Create submission status enum or constants
+* [x] Add model scopes like `draft`, `submitted`, `eligible`
+* [x] Create submission create page
+* [x] Create submission edit page
+* [x] Create submission detail/show page
+* [x] Add presenter-only ownership policy
+* [x] Add admin/manager/secretary access policy
 
 ### D2. Submission Draft Flow
 
-* [ ] Support save as draft
-* [ ] Support final submit
-* [ ] Prevent final submit if required fields missing
-* [ ] Lock certain fields after final submit, or define editable rules
-* [ ] Show clear status badge on submission page
-* [ ] Add confirmation modal before final submission
+* [x] Support save as draft
+* [x] Support final submit
+* [x] Prevent final submit if required fields missing
+* [x] Lock certain fields after final submit, or define editable rules
+* [x] Show clear status badge on submission page
+* [x] Add confirmation modal before final submission
 
 ---
 

@@ -64,6 +64,11 @@ class Organization extends Model
         return $this->morphMany(Note::class, 'noteable')->latest();
     }
 
+    public function submissions(): HasMany
+    {
+        return $this->hasMany(Submission::class)->latest();
+    }
+
     public function isManagedBy(User $user): bool
     {
         $applicantId = $user->applicant?->id;

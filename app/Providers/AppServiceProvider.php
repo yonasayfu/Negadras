@@ -11,6 +11,7 @@ use App\Models\Page;
 use App\Models\Season;
 use App\Models\Setting;
 use App\Models\Stage;
+use App\Models\Submission;
 use App\Models\User;
 use App\Policies\ApplicantPolicy;
 use App\Policies\IndustryPolicy;
@@ -22,6 +23,7 @@ use App\Policies\RolePolicy;
 use App\Policies\SeasonPolicy;
 use App\Policies\SettingPolicy;
 use App\Policies\StagePolicy;
+use App\Policies\SubmissionPolicy;
 use App\Policies\UserPolicy;
 use App\Support\ActivityLogger;
 use Carbon\CarbonImmutable;
@@ -70,6 +72,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Season::class, SeasonPolicy::class);
         Gate::policy(Setting::class, SettingPolicy::class);
         Gate::policy(Stage::class, StagePolicy::class);
+        Gate::policy(Submission::class, SubmissionPolicy::class);
         Gate::policy(Role::class, RolePolicy::class);
 
         Gate::before(fn (User $user, string $ability): ?bool => $user->hasRole('Admin') ? true : null);

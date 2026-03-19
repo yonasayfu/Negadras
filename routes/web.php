@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\RoleManagementController;
 use App\Http\Controllers\Admin\SeasonManagementController;
 use App\Http\Controllers\Admin\SettingsManagementController;
 use App\Http\Controllers\Admin\StageManagementController;
+use App\Http\Controllers\Admin\SubmissionManagementController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExportCenterController;
@@ -20,6 +21,7 @@ use App\Http\Controllers\HandbookController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PublicPageController;
 use App\Http\Controllers\ReportsController;
+use App\Http\Controllers\SubmissionController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
 
@@ -34,6 +36,20 @@ Route::middleware(['auth', 'verified', 'permission:dashboard.view'])->group(func
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('submissions', [SubmissionController::class, 'index'])->name('submissions.index');
+
+    Route::get('submissions/create', [SubmissionController::class, 'create'])->name('submissions.create');
+
+    Route::post('submissions', [SubmissionController::class, 'store'])->name('submissions.store');
+
+    Route::get('submissions/{submission}', [SubmissionController::class, 'show'])->name('submissions.show');
+
+    Route::get('submissions/{submission}/edit', [SubmissionController::class, 'edit'])->name('submissions.edit');
+
+    Route::put('submissions/{submission}', [SubmissionController::class, 'update'])->name('submissions.update');
+
+    Route::delete('submissions/{submission}', [SubmissionController::class, 'destroy'])->name('submissions.destroy');
+
     Route::get('search', GlobalSearchController::class)
         ->middleware('permission:search.view')
         ->name('search.index');
@@ -97,6 +113,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('admin/organizations/{organization}', [OrganizationManagementController::class, 'destroy'])
         ->middleware('permission:organizations.delete')
         ->name('organizations.destroy');
+
+    Route::get('admin/submissions', [SubmissionManagementController::class, 'index'])
+        ->middleware('permission:submissions.view')
+        ->name('admin-submissions.index');
+
+    Route::get('admin/submissions/{submission}', [SubmissionManagementController::class, 'show'])
+        ->middleware('permission:submissions.view')
+        ->name('admin-submissions.show');
 
     Route::get('admin/seasons', [SeasonManagementController::class, 'index'])
         ->middleware('permission:seasons.view')

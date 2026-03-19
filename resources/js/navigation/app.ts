@@ -6,6 +6,7 @@ import {
     CalendarRange,
     FileOutput,
     FileSpreadsheet,
+    FolderKanban,
     FileText,
     FolderOpen,
     IdCard,
@@ -17,6 +18,7 @@ import {
     Workflow,
 } from 'lucide-vue-next';
 import { index as activityLogsIndex } from '@/routes/activity-logs';
+import { index as adminSubmissionsIndex } from '@/routes/admin-submissions';
 import { edit as adminSettingsEdit } from '@/routes/admin-settings';
 import { dashboard } from '@/routes';
 import { index as applicantsIndex } from '@/routes/applicants';
@@ -31,6 +33,7 @@ import { index as reportsIndex } from '@/routes/reports';
 import { index as rolesIndex } from '@/routes/roles';
 import { index as seasonsIndex } from '@/routes/seasons';
 import { index as stagesIndex } from '@/routes/stages';
+import { index as submissionsIndex } from '@/routes/submissions';
 import { index as usersIndex } from '@/routes/users';
 import type { NavGroup } from '@/types';
 
@@ -91,6 +94,11 @@ export const appNavigation: NavGroup[] = [
                 permission: 'organizations.view',
             },
             {
+                title: 'Submissions',
+                href: submissionsIndex(),
+                icon: FolderKanban,
+            },
+            {
                 title: 'Seasons',
                 href: seasonsIndex(),
                 icon: CalendarRange,
@@ -136,6 +144,12 @@ export const appNavigation: NavGroup[] = [
                 href: mediaIndex(),
                 icon: FolderOpen,
                 permission: 'media.view',
+            },
+            {
+                title: 'Submission intake',
+                href: adminSubmissionsIndex(),
+                icon: FolderKanban,
+                permission: 'submissions.view',
             },
             {
                 title: 'Users',

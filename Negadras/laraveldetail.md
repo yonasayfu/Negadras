@@ -1096,3 +1096,415 @@ What they prove:
    - presenter profile first
    - organization profile second
    - submission layer later
+
+---
+
+## Entry 004: Phase N1 Step 4 - Submission Core Foundation
+
+This phase introduced the first real Negadras business record that combines the earlier foundations:
+
+- competition structure
+- presenter identity
+- optional organization ownership
+
+The goal was to create a submission record that a presenter owns, can save as draft, can finally submit, and that staff can inspect from a separate operational surface.
+
+### What existed before
+
+Before this phase:
+
+- seasons existed
+- stages existed
+- industries existed
+- applicants existed
+- organizations existed
+- there was no submission record tying them together
+- there was no presenter-facing draft flow
+- there was no staff-facing intake screen
+
+That meant the Negadras domain had identity and taxonomy, but not the actual business object the competition depends on.
+
+### What changed by file and why
+
+#### [database/migrations/2026_03_19_054510_create_submissions_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_054510_create_submissions_table.php)
+
+This migration created the first real intake table.
+
+Important structure:
+
+```diff
++ $table->foreignId('season_id')->constrained()->cascadeOnDelete();
++ $table->foreignId('current_stage_id')->nullable()->constrained('stages')->nullOnDelete();
++ $table->foreignId('industry_id')->nullable()->constrained()->nullOnDelete();
++ $table->foreignId('applicant_id')->constrained()->cascadeOnDelete();
++ $table->foreignId('organization_id')->nullable()->constrained()->nullOnDelete();
++ $table->string('title');
++ $table->text('summary')->nullable();
++ $table->text('problem_statement')->nullable();
++ $table->text('solution_description')->nullable();
++ $table->text('business_model')->nullable();
++ $table->string('status')->default(SubmissionStatus::Draft->value);
++ $table->timestamp('submitted_at')->nullable();
++ $table->boolean('is_public_after_approval')->default(false);
++ $table->unsignedBigInteger('current_version_id')->nullable();
+```
+
+Why:
+
+- one submission must belong to exactly one presenter
+- one submission must belong to exactly one season
+- one submission can optionally belong to one organization
+- stage is stored as the current movement point in the workflow
+- the narrative fields stay nullable so draft mode is possible
+- `current_version_id` is added now so later versioning does not require redesign
+
+#### [app/SubmissionStatus.php](/Users/yonassayfu/Herd/Negadras/app/SubmissionStatus.php)
+
+This enum made the first Negadras submission lifecycle explicit.
+
+Important rule:
+
+```php
+public function allowsPresenterEdits(): bool
+{
+    return match ($this) {
+        self::Draft, self::IncompleteReturned => true,
+        self::Submitted, self::Eligible, self::ScreeningRejected => false,
+    };
+}
+```
+
+Why:
+
+- draft records stay editable
+- returned records stay editable
+- staff-controlled statuses become locked to the presenter
+- this keeps future screening and eligibility changes out of the presenter UI
+
+#### [app/Models/Submission.php](/Users/yonassayfu/Herd/Negadras/app/Models/Submission.php)
+
+This model became the center of the Negadras intake layer.
+
+Core behavior:
+
+```diff
++ public function season(): BelongsTo
++ public function currentStage(): BelongsTo
++ public function industry(): BelongsTo
++ public function applicant(): BelongsTo
++ public function organization(): BelongsTo
++
++ public function scopeDraft(Builder $query): Builder
++ public function scopeSubmitted(Builder $query): Builder
++ public function scopeEligible(Builder $query): Builder
++
++ public function isOwnedBy(User $user): bool
++ public function isEditableByPresenter(): bool
+```
+
+Why:
+
+- the model must carry both relationship meaning and workflow meaning
+- the presenter ownership check belongs here because controllers and policies both depend on it
+- the scopes prepare later reporting and queueing logic without raw query duplication
+
+#### Relationship files
+
+- [app/Models/Season.php](/Users/yonassayfu/Herd/Negadras/app/Models/Season.php)
+- [app/Models/Stage.php](/Users/yonassayfu/Herd/Negadras/app/Models/Stage.php)
+- [app/Models/Industry.php](/Users/yonassayfu/Herd/Negadras/app/Models/Industry.php)
+- [app/Models/Applicant.php](/Users/yonassayfu/Herd/Negadras/app/Models/Applicant.php)
+- [app/Models/Organization.php](/Users/yonassayfu/Herd/Negadras/app/Models/Organization.php)
+
+What changed:
+
+```diff
++ public function submissions(): HasMany
+```
+
+Why:
+
+- Negadras reporting, screening, judging, and archive phases will all pivot around these reverse links
+- adding them now avoids ad-hoc query building in later phases
+
+#### [app/Policies/SubmissionPolicy.php](/Users/yonassayfu/Herd/Negadras/app/Policies/SubmissionPolicy.php)
+
+This file is the actual security boundary.
+
+Important rule:
+
+```diff
+- return $user->applicant !== null || $user->can('submissions.view');
++ return true;
+```
+
+Why that change mattered:
+
+- the first attempt blocked users before the controller could redirect them to create a presenter profile
+- making `viewAny` and `create` open to authenticated users allows the workflow to guide them correctly
+- ownership is still enforced on actual records with `view`, `update`, and `delete`
+
+The real enforcement:
+
+```php
+return $user->can('submissions.update')
+    || ($submission->isOwnedBy($user) && $submission->isEditableByPresenter());
+```
+
+Why:
+
+- managers/admins need broad operational access
+- presenters need narrow ownership-based access
+- locked statuses must not become editable just because the presenter owns the record
+
+#### [app/Http/Requests/StoreSubmissionRequest.php](/Users/yonassayfu/Herd/Negadras/app/Http/Requests/StoreSubmissionRequest.php)
+#### [app/Http/Requests/UpdateSubmissionRequest.php](/Users/yonassayfu/Herd/Negadras/app/Http/Requests/UpdateSubmissionRequest.php)
+
+These requests enforce the difference between draft mode and final submit.
+
+Key rule:
+
+```php
+$submitting = $intent === 'submit';
+
+'summary' => [$submitting ? 'required' : 'nullable', 'string', 'max:4000'],
+'problem_statement' => [$submitting ? 'required' : 'nullable', 'string', 'max:10000'],
+'solution_description' => [$submitting ? 'required' : 'nullable', 'string', 'max:10000'],
+'business_model' => [$submitting ? 'required' : 'nullable', 'string', 'max:10000'],
+```
+
+Why:
+
+- draft must stay flexible
+- final submit must be structurally complete
+- the validation rule expresses business intent directly instead of forcing the Vue layer to guess
+
+Cross-table protection:
+
+```php
+$matchesSeason = Stage::query()
+    ->whereKey($stageId)
+    ->where('season_id', $seasonId)
+    ->exists();
+```
+
+Why:
+
+- a submission must not attach a stage from a different season
+- this is a domain integrity rule, not just a select-box convenience
+
+Organization ownership protection:
+
+```php
+->whereHas('teamMembers', function ($query) use ($applicantId): void {
+    $query
+        ->where('applicant_id', $applicantId)
+        ->where('is_primary_contact', true);
+})
+```
+
+Why:
+
+- a presenter cannot attach a random organization
+- only organizations they manage as the primary contact can be claimed by the submission
+
+#### [app/Http/Controllers/SubmissionController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/SubmissionController.php)
+
+This is the presenter-facing workflow controller.
+
+What it now does:
+
+- submissions index
+- create page
+- draft create
+- final submit
+- detail page
+- edit page
+- draft update
+- delete draft
+
+Important branching:
+
+```php
+'status' => $intent === 'submit' ? SubmissionStatus::Submitted : SubmissionStatus::Draft,
+'submitted_at' => $intent === 'submit' ? now() : null,
+```
+
+Why:
+
+- draft and final submit are the same record path, not separate models
+- keeping the branching in the controller makes the business flow explicit and easy to audit
+
+Important presenter guard:
+
+```php
+if ($applicant === null) {
+    return to_route('applicant-profile.edit')->with('error', 'Create your presenter profile before creating a submission.');
+}
+```
+
+Why:
+
+- this preserves the intended dependency order of the project
+- presenter profile must exist before submission intake begins
+
+#### [app/Http/Controllers/Admin/SubmissionManagementController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/SubmissionManagementController.php)
+
+This is the staff-facing operational surface.
+
+Why it is separate:
+
+- staff should inspect submissions differently from presenters
+- presenter pages are ownership-driven and action-heavy
+- admin pages are search-first and inspection-first
+
+Search logic:
+
+```php
+->where('title', 'ilike', "%{$search}%")
+->orWhereHas('applicant', ...)
+->orWhereHas('organization', ...)
+```
+
+Why:
+
+- intake staff usually search by project title, presenter, or company name
+
+#### [routes/web.php](/Users/yonassayfu/Herd/Negadras/routes/web.php)
+
+New presenter routes:
+
+```diff
++ submissions.index
++ submissions.create
++ submissions.store
++ submissions.show
++ submissions.edit
++ submissions.update
++ submissions.destroy
+```
+
+New staff routes:
+
+```diff
++ admin-submissions.index
++ admin-submissions.show
+```
+
+Why:
+
+- presenter and staff use the same model but different operational surfaces
+- admin routes stay behind permission middleware
+- presenter routes rely on policy ownership and profile dependency checks
+
+#### [database/seeders/RolePermissionSeeder.php](/Users/yonassayfu/Herd/Negadras/database/seeders/RolePermissionSeeder.php)
+#### [app/Http/Controllers/Admin/RoleManagementController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/RoleManagementController.php)
+
+New permissions:
+
+```diff
++ submissions.view
++ submissions.create
++ submissions.update
++ submissions.delete
+```
+
+Why:
+
+- staff operations around intake need explicit access controls
+- presenters do not need those permissions for their own records because policy ownership handles that path
+- this keeps Negadras ready for secretary/reviewer/judge-specific role design later
+
+#### Frontend submission pages
+
+- [resources/js/pages/submissions/Index.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/submissions/Index.vue)
+- [resources/js/pages/submissions/Create.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/submissions/Create.vue)
+- [resources/js/pages/submissions/Edit.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/submissions/Edit.vue)
+- [resources/js/pages/submissions/Show.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/submissions/Show.vue)
+
+What they demonstrate:
+
+- create presenter-facing draft list
+- handle missing presenter profile cleanly
+- filter available stages by selected season
+- offer save draft and final submit as separate actions
+- show locked or editable state through status and action visibility
+
+Important frontend rule:
+
+```ts
+const availableStages = computed(() =>
+    props.stageOptions.filter((stage) => String(stage.seasonId) === form.season_id),
+);
+```
+
+Why:
+
+- the UI reduces bad combinations early
+- the backend still validates the season-stage link for real protection
+
+Final submit confirmation:
+
+```vue
+<ConfirmActionDialog
+    title="Final submit this draft?"
+    description="After final submission, the draft becomes locked until Negadras returns it for correction."
+    confirm-label="Submit now"
+    @confirm="submitFinal"
+/>
+```
+
+Why:
+
+- this is a real business transition, not just a save button
+- the user needs one deliberate checkpoint before locking the record
+
+#### Frontend admin pages
+
+- [resources/js/pages/admin/Submissions/Index.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/Submissions/Index.vue)
+- [resources/js/pages/admin/Submissions/Show.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/Submissions/Show.vue)
+
+Why:
+
+- staff need a dedicated intake board
+- admin viewing is read-focused and search-focused
+- this separation avoids letting operational review accidentally become the presenter editing UI
+
+#### Tests
+
+- [tests/Feature/SubmissionFlowTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/SubmissionFlowTest.php)
+- [tests/Feature/Admin/SubmissionManagementTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/Admin/SubmissionManagementTest.php)
+
+What they prove:
+
+- a signed-in user without an applicant profile can still enter the submission area and gets redirected correctly before create
+- a presenter can save a draft and later submit it
+- a presenter cannot view another presenter’s submission
+- a manager can inspect admin submission pages
+- a member cannot access admin submission pages
+
+### One practical verification detail
+
+The first test run failed because the new Inertia pages were not yet present in the built Vite manifest.
+
+What fixed it:
+
+```bash
+npm run build
+php artisan test --compact tests/Feature/SubmissionFlowTest.php tests/Feature/Admin/SubmissionManagementTest.php
+```
+
+Why this matters:
+
+- when you add new Inertia pages, Laravel test rendering may need a fresh production build if the manifest is stale
+- this is not a business-logic failure, it is an asset registration issue
+
+### Laravel takeaways from this phase
+
+1. Keep business transitions like draft versus final submit in the controller and request layer, not hidden in a frontend-only flag.
+2. Use policies for ownership and staff overrides at the same time instead of splitting into insecure parallel controllers.
+3. Validate cross-table consistency explicitly:
+   - season must match stage
+   - presenter must control the linked organization
+4. Use enums early when a workflow will expand later.
+5. Separate presenter UX from staff UX even when they read the same model.

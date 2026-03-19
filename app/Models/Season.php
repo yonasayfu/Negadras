@@ -42,4 +42,9 @@ class Season extends Model
     {
         return $this->hasMany(Stage::class)->orderBy('order_index');
     }
+
+    public function submissions(): HasMany
+    {
+        return $this->hasMany(Submission::class)->latest();
+    }
 }

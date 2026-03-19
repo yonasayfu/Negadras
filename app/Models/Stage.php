@@ -8,6 +8,7 @@ use Database\Factories\StageFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Stage extends Model
 {
@@ -46,5 +47,10 @@ class Stage extends Model
     public function season(): BelongsTo
     {
         return $this->belongsTo(Season::class);
+    }
+
+    public function submissions(): HasMany
+    {
+        return $this->hasMany(Submission::class, 'current_stage_id')->latest();
     }
 }

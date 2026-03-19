@@ -136,6 +136,38 @@ export type ManagedOrganization = {
     teamMembers: ManagedTeamMember[];
 };
 
+export type ManagedSubmission = {
+    id: number;
+    title: string;
+    seasonName: string | null;
+    stageName: string | null;
+    industryName: string | null;
+    organizationName: string | null;
+    applicantName?: string | null;
+    applicantEmail?: string | null;
+    status: string;
+    statusLabel: string;
+    statusTone: string;
+    submittedAt: string | null;
+    updatedAt: string | null;
+    canEdit?: boolean;
+    summary?: string | null;
+    problemStatement?: string | null;
+    solutionDescription?: string | null;
+    businessModel?: string | null;
+    seasonId?: number;
+    currentStageId?: number | null;
+    industryId?: number | null;
+    organizationId?: number | null;
+    isPublicAfterApproval?: boolean;
+};
+
+export type SubmissionStageOption = {
+    value: number;
+    label: string;
+    seasonId: number;
+};
+
 export type SelectOption = {
     value: string;
     label: string;

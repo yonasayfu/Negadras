@@ -51,4 +51,9 @@ class Applicant extends Model
     {
         return $this->hasMany(TeamMember::class)->orderByDesc('is_primary_contact');
     }
+
+    public function submissions(): HasMany
+    {
+        return $this->hasMany(Submission::class)->latest();
+    }
 }

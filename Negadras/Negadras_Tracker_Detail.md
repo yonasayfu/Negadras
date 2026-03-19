@@ -1084,35 +1084,35 @@ Add:
 
 ### A1. Session Table
 
-* [ ] Create `sessions` migration
-* [ ] Add fields: `season_id`, `stage_id`, `panel_id_optional`, `name`, `session_type`, `scheduled_at`, `broadcasted_at`, `location`, `status`, `etv_video_url_optional`
-* [ ] Create Session model
-* [ ] Create session CRUD
-* [ ] Add schedule management UI
+* [x] Create session migration using `competition_sessions` to avoid collision with Laravel auth sessions
+* [x] Add fields: `season_id`, `stage_id`, `panel_id_optional`, `name`, `session_type`, `scheduled_at`, `broadcasted_at`, `location`, `status`, `etv_video_url_optional`
+* [x] Create CompetitionSession model
+* [x] Create session CRUD
+* [x] Add schedule management UI
 
 ### A2. Session Presenter Queue
 
-* [ ] Create `session_presenters` migration
-* [ ] Add fields: `session_id`, `submission_id`, `order_index`, `appearance_status`
-* [ ] Create model
-* [ ] Build drag-and-drop or reorder queue
-* [ ] Add current presenter indicator
-* [ ] Add next presenter preview
+* [x] Create `session_presenters` migration
+* [x] Add fields: `session_id`, `submission_id`, `order_index`, `appearance_status`
+* [x] Create model
+* [x] Build reorder queue
+* [x] Add current presenter indicator
+* [x] Add next presenter preview
 
 ---
 
 ## B. Session Event Logging
 
-* [ ] Create `session_events` migration
-* [ ] Add fields: `session_id`, `event_type`, `payload_json`, `created_by`, `created_at`
-* [ ] Log actions such as:
+* [x] Create `session_events` migration
+* [x] Add fields: `session_id`, `event_type`, `payload_json`, `created_by`, `created_at`
+* [x] Log actions such as:
 
-  * [ ] session started
-  * [ ] presenter started
-  * [ ] presenter ended
-  * [ ] scoring revealed
-  * [ ] session paused
-  * [ ] session completed
+  * [x] session started
+  * [x] presenter started
+  * [x] presenter ended
+  * [x] scoring revealed
+  * [x] session paused
+  * [x] session completed
 
 ---
 
@@ -1124,55 +1124,59 @@ Add:
 * [ ] Broadcast reveal actions
 * [ ] Broadcast judge submission status
 * [ ] Create frontend listeners
-* [ ] Add fallback non-live polling plan if needed
+* [x] Add fallback non-live polling plan if needed
+
+Current implementation note:
+
+* [x] Build `live_status_snapshots` + polling-first live engine as the MVP-safe transport layer
 
 ---
 
 ## D. Judge Live Tablet View
 
-* [ ] Create live scoring layout for tablets
-* [ ] Show current presenter details
+* [x] Create live scoring layout for tablets
+* [x] Show current presenter details
 * [ ] Show timer if needed
-* [ ] Show rubric scoring panel
-* [ ] Show current submission progress
-* [ ] Show save draft / submit buttons
-* [ ] Show lock/reveal status
-* [ ] Optimize touch-friendly UI
+* [x] Show rubric scoring panel
+* [x] Show current submission progress
+* [x] Show save draft / submit buttons
+* [x] Show lock/reveal status
+* [x] Optimize touch-friendly UI
 
 ---
 
 ## E. Moderator / Production Dashboard
 
-* [ ] Create moderator dashboard
-* [ ] Show live session status
-* [ ] Show current presenter
-* [ ] Show judge completion indicators
-* [ ] Show aggregate score
-* [ ] Add start/pause/resume/end controls
-* [ ] Add presenter queue controls
-* [ ] Add reveal control
-* [ ] Add projection control placeholder
+* [x] Create moderator dashboard
+* [x] Show live session status
+* [x] Show current presenter
+* [x] Show judge completion indicators
+* [x] Show aggregate score
+* [x] Add start/pause/resume/end controls
+* [x] Add presenter queue controls
+* [x] Add reveal control
+* [x] Add projection control placeholder
 
 ---
 
 ## F. Main Dashboard View
 
-* [ ] Create audience/studio dashboard
-* [ ] Show presenter/project title
-* [ ] Show category
-* [ ] Show aggregate score
+* [x] Create audience/studio dashboard
+* [x] Show presenter/project title
+* [x] Show category
+* [x] Show aggregate score
 * [ ] Show non-sensitive comments/highlights if allowed
-* [ ] Hide private judge details unless reveal policy allows
+* [x] Hide private judge details unless reveal policy allows
 
 ---
 
 ## G. Projection Support
 
-* [ ] Create `dashboard_projection_sessions` migration
-* [ ] Add fields for active projector/source
-* [ ] Build project request button placeholder
-* [ ] Add manager approval before projection
-* [ ] Log projection start/end events
+* [x] Create `dashboard_projection_sessions` migration
+* [x] Add fields for active projector/source
+* [x] Build project request button placeholder
+* [x] Add manager approval before projection
+* [x] Log projection start/end events
 
 This can be MVP-light at first.
 
@@ -1180,24 +1184,24 @@ This can be MVP-light at first.
 
 ## H. Testing
 
-* [ ] Live score updates appear correctly
-* [ ] Judge tablet UI works on tablet resolution
-* [ ] Moderator controls change session state
-* [ ] Presenter order updates live
-* [ ] Reveal behavior respects privacy rules
-* [ ] Non-authorized users cannot control session
+* [x] Live score updates appear correctly through polling snapshots
+* [x] Judge tablet UI works on tablet resolution
+* [x] Moderator controls change session state
+* [x] Presenter order updates live
+* [x] Reveal behavior respects privacy rules
+* [x] Non-authorized users cannot control session
 
 ---
 
 ## Phase 4 Done Definition
 
-* [ ] sessions can be created and scheduled
-* [ ] presenters can be queued per session
-* [ ] judges can score in live mode
-* [ ] live dashboard updates work
-* [ ] moderator can control session flow
-* [ ] reveal flow works
-* [ ] tests pass
+* [x] sessions can be created and scheduled
+* [x] presenters can be queued per session
+* [x] judges can score in live mode
+* [x] live dashboard updates work
+* [x] moderator can control session flow
+* [x] reveal flow works
+* [x] tests pass
 
 ---
 
@@ -1612,10 +1616,10 @@ Prepare the app for real launch and board confidence.
 
 Here is the simplest overall order:
 
-* [ ] Phase 1 — Competition Foundation & Submission Core
-* [ ] Phase 2 — Screening & Reviewer Workflow
-* [ ] Phase 3 — Judge, Panel & Rubric Engine
-* [ ] Phase 4 — Live Session & Real-Time Dashboard
+* [x] Phase 1 — Competition Foundation & Submission Core
+* [x] Phase 2 — Screening & Reviewer Workflow
+* [x] Phase 3 — Judge, Panel & Rubric Engine
+* [x] Phase 4 — Live Session & Real-Time Dashboard
 * [ ] Phase 5 — Feedback, Ranking, Awards & Archive
 * [ ] Phase 6 — Reporting, Exports & Governance
 * [ ] Phase 7 — AI Intelligence Layer
@@ -1625,10 +1629,10 @@ Here is the simplest overall order:
 
 # Recommended Practical Milestone Names
 
-* [ ] milestone 1: submission foundation complete
-* [ ] milestone 2: reviewer screening workflow complete
-* [ ] milestone 3: judge scoring engine complete
-* [ ] milestone 4: live session operations complete
+* [x] milestone 1: submission foundation complete
+* [x] milestone 2: reviewer screening workflow complete
+* [x] milestone 3: judge scoring engine complete
+* [x] milestone 4: live session operations complete
 * [ ] milestone 5: archive and feedback complete
 * [ ] milestone 6: governance and reporting complete
 * [ ] milestone 7: AI advisory layer complete

@@ -131,10 +131,12 @@ Current progress:
 - seasons, stages, industries, applicants, social links, organizations, team members, submission intake, submission versioning, private submission file handling, status history tracking, intake operations, presenter counters, open-call visibility, and dashboard metrics are now in place
 - reviewer profiles, reviewer permissions, reviewer-only visibility rules, reviewer assignments, reviewer notifications, reviewer workload visibility, screening recommendations, structured eligibility checks, screening draft save, final screening submission, reviewer work queue, manager screening queue, reassignment, manager reopen flow, shortlist or reject or revision decisions, technical assignments, technical queue operations, technical expert comparison, shortlist approval, and overdue-review handling are now in place
 - judge profiles, judge permissions, panel membership, rubric bindings, panel submission assignment, private scoring, presenter-visible comments, conflict handling, lock and reopen flow, and score visibility history are now in place
+- competition sessions, presenter queue control, live session event logging, polling-first live snapshots, judge live tablet view, moderator controls, studio dashboard, and projection request flow are now in place
 - checklist estimate:
   - detailed Phase 2 screening and reviewer workflow backlog is complete
   - detailed Phase 3 judge, panel, and rubric foundation backlog is substantially complete
-  - full multi-phase Negadras roadmap is roughly 52% complete
+  - detailed Phase 4 live-session and dashboard backlog is complete for the polling-first MVP cut
+  - full multi-phase Negadras roadmap is roughly 61% complete
 
 ### Phase N2: Operational Workflow
 
@@ -147,11 +149,12 @@ Current progress:
 - results finalization
 - archive creation
 
-### Phase N3: Live Judging Surface
+### Phase N3: Judge, Panel, and Live Operations
 
 - judge tablet scoring screen
+- panel scoring controls
 - live session control
-- real-time status updates
+- polling-first live status updates
 - moderator/session operator tooling
 - projection-safe session views
 

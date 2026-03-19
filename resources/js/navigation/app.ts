@@ -4,6 +4,7 @@ import {
     BookOpenText,
     Building2,
     CalendarRange,
+    Cast,
     ClipboardCheck,
     FileOutput,
     FileSpreadsheet,
@@ -29,6 +30,7 @@ import { index as applicantsIndex } from '@/routes/applicants';
 import { index as exportsIndex } from '@/routes/exports';
 import { index as handbookIndex } from '@/routes/handbook';
 import { index as industriesIndex } from '@/routes/industries';
+import { index as judgeLiveIndex } from '@/routes/judge-live';
 import { index as judgeWorkspaceIndex } from '@/routes/judge-workspace';
 import { index as judgesIndex } from '@/routes/judges';
 import { index as mediaIndex } from '@/routes/media';
@@ -40,6 +42,7 @@ import { index as reportsIndex } from '@/routes/reports';
 import { index as reviewerQueueIndex } from '@/routes/reviewer-queue';
 import { index as reviewersIndex } from '@/routes/reviewers';
 import { index as rolesIndex } from '@/routes/roles';
+import { index as competitionSessionsIndex } from '@/routes/competition-sessions';
 import { index as screeningQueueIndex } from '@/routes/screening-queue';
 import { index as seasonsIndex } from '@/routes/seasons';
 import { index as shortlistIndex } from '@/routes/shortlist';
@@ -129,6 +132,12 @@ export const appNavigation: NavGroup[] = [
                 href: judgeWorkspaceIndex(),
                 icon: Gavel,
                 permission: 'judge-workspace.view',
+            },
+            {
+                title: 'Judge live view',
+                href: judgeLiveIndex(),
+                icon: Cast,
+                permission: 'judge-live.view',
             },
             {
                 title: 'Seasons',
@@ -230,6 +239,12 @@ export const appNavigation: NavGroup[] = [
                 href: panelsIndex(),
                 icon: Scale,
                 permission: 'panels.view',
+            },
+            {
+                title: 'Competition sessions',
+                href: competitionSessionsIndex(),
+                icon: CalendarRange,
+                permission: 'competition-sessions.view',
             },
             {
                 title: 'Roles',

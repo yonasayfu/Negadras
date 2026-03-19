@@ -5,6 +5,7 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -73,5 +74,10 @@ class User extends Authenticatable implements MustVerifyEmail
     public function judge(): HasOne
     {
         return $this->hasOne(Judge::class);
+    }
+
+    public function liveStatusSnapshots(): HasMany
+    {
+        return $this->hasMany(LiveStatusSnapshot::class, 'updated_by');
     }
 }

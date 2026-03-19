@@ -137,6 +137,11 @@ class Submission extends Model
         return $this->hasMany(ScreeningReview::class)->latest('submitted_at');
     }
 
+    public function sessionPresenters(): HasMany
+    {
+        return $this->hasMany(SessionPresenter::class)->latest('order_index');
+    }
+
     public function scopeDraft(Builder $query): Builder
     {
         return $query->where('status', SubmissionStatus::Draft);

@@ -5245,3 +5245,317 @@ What is intentionally still outside this phase:
 - tablet-first live judging layout
 - public reveal/projection workflow
 - final ranking, awards, and archive publication
+
+## Entry 014: Phase N4 - Live Session, Real-Time Dashboard, and Broadcast-Ready Operations
+
+### Scope
+
+This phase implemented the presentation-day operations layer for Negadras:
+
+- competition sessions
+- presenter queue management
+- session event logging
+- polling-first live status snapshots
+- judge live tablet scoring view
+- moderator control surface
+- public/studio dashboard
+- projection request and approval placeholder
+
+The key engineering decision in this phase was deliberate:
+
+- do not force websocket infrastructure into the project before it is needed and stable
+- build a broadcast-ready domain model now
+- ship the MVP transport as polling against persisted live snapshots
+
+That gives Negadras a working live-day operations surface without adding deployment complexity too early.
+
+### Files and why they changed
+
+#### Live-session domain foundation
+
+- [app/Models/CompetitionSession.php](/Users/yonassayfu/Herd/Negadras/app/Models/CompetitionSession.php)
+- [app/Models/SessionPresenter.php](/Users/yonassayfu/Herd/Negadras/app/Models/SessionPresenter.php)
+- [app/Models/SessionEvent.php](/Users/yonassayfu/Herd/Negadras/app/Models/SessionEvent.php)
+- [app/Models/DashboardProjectionSession.php](/Users/yonassayfu/Herd/Negadras/app/Models/DashboardProjectionSession.php)
+- [app/Models/SessionMedium.php](/Users/yonassayfu/Herd/Negadras/app/Models/SessionMedium.php)
+- [app/Models/LiveStatusSnapshot.php](/Users/yonassayfu/Herd/Negadras/app/Models/LiveStatusSnapshot.php)
+- [app/CompetitionSessionStatus.php](/Users/yonassayfu/Herd/Negadras/app/CompetitionSessionStatus.php)
+- [app/CompetitionSessionType.php](/Users/yonassayfu/Herd/Negadras/app/CompetitionSessionType.php)
+- [app/SessionAppearanceStatus.php](/Users/yonassayfu/Herd/Negadras/app/SessionAppearanceStatus.php)
+- [app/SessionEventType.php](/Users/yonassayfu/Herd/Negadras/app/SessionEventType.php)
+- [app/DashboardProjectionStatus.php](/Users/yonassayfu/Herd/Negadras/app/DashboardProjectionStatus.php)
+
+Important naming decision:
+
+```diff
+- sessions
++ competition_sessions
+```
+
+Why:
+
+- Laravel already owns a `sessions` table for authentication/session persistence
+- using `competition_sessions` avoids a confusing collision
+- the domain remains explicit in queries, policies, and logs
+
+Core relationship shape:
+
+```php
+public function presenters(): HasMany
+{
+    return $this->hasMany(SessionPresenter::class)->orderBy('order_index');
+}
+
+public function snapshot(): HasOne
+{
+    return $this->hasOne(LiveStatusSnapshot::class);
+}
+```
+
+Why:
+
+- live moderation depends on deterministic queue order
+- the current state of a session must be queryable fast
+- a single snapshot row is cheaper to poll than rebuilding the full live status from scratch on every browser refresh
+
+#### Migrations and state persistence
+
+- [database/migrations/2026_03_19_122556_create_competition_sessions_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_122556_create_competition_sessions_table.php)
+- [database/migrations/2026_03_19_122556_create_session_presenters_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_122556_create_session_presenters_table.php)
+- [database/migrations/2026_03_19_122557_create_session_events_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_122557_create_session_events_table.php)
+- [database/migrations/2026_03_19_122557_create_dashboard_projection_sessions_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_122557_create_dashboard_projection_sessions_table.php)
+- [database/migrations/2026_03_19_122557_create_session_media_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_122557_create_session_media_table.php)
+- [database/migrations/2026_03_19_122557_create_live_status_snapshots_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_122557_create_live_status_snapshots_table.php)
+
+What these migrations establish:
+
+```diff
++ competition session schedule and status
++ presenter queue ordering
++ auditable event stream
++ projection approval history
++ session-linked media
++ cached live snapshot payload
+```
+
+Why this split matters:
+
+- `session_events` is the audit stream
+- `live_status_snapshots` is the fast read model
+- those two responsibilities should not be collapsed into one table
+
+#### Live orchestration service
+
+- [app/Support/LiveSessionCoordinator.php](/Users/yonassayfu/Herd/Negadras/app/Support/LiveSessionCoordinator.php)
+- [app/Support/LiveStatusSnapshotBuilder.php](/Users/yonassayfu/Herd/Negadras/app/Support/LiveStatusSnapshotBuilder.php)
+
+This is the center of the phase.
+
+Main responsibilities:
+
+```diff
++ startSession()
++ pauseSession()
++ resumeSession()
++ completeSession()
++ activatePresenter()
++ advancePresenter()
++ reorderQueue()
++ setScoresVisibility()
++ updateProjection()
++ refreshSnapshot()
+```
+
+Why one coordinator service:
+
+- moderator actions are tightly related
+- if queue movement, reveal logic, projection changes, and snapshot refreshes live in separate controllers, the session state will drift
+- the service keeps the business transitions coherent and auditable
+
+Example transition pattern:
+
+```php
+$session->forceFill([
+    'status' => CompetitionSessionStatus::Live,
+    'started_at' => $session->started_at ?? now(),
+])->save();
+
+$this->recordEvent($session, SessionEventType::SessionStarted, $actor);
+$this->refreshSnapshot($session, $actor);
+```
+
+Why:
+
+- each operator action updates the canonical session state
+- each action is logged
+- each action refreshes the read model used by live screens
+
+#### Session and moderator controllers
+
+- [app/Http/Controllers/Admin/CompetitionSessionManagementController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/CompetitionSessionManagementController.php)
+- [app/Http/Controllers/Admin/LiveSessionController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/LiveSessionController.php)
+- [app/Http/Requests/Admin/StoreCompetitionSessionRequest.php](/Users/yonassayfu/Herd/Negadras/app/Http/Requests/Admin/StoreCompetitionSessionRequest.php)
+- [app/Http/Requests/Admin/UpdateCompetitionSessionRequest.php](/Users/yonassayfu/Herd/Negadras/app/Http/Requests/Admin/UpdateCompetitionSessionRequest.php)
+- [app/Http/Requests/Admin/StoreSessionPresenterRequest.php](/Users/yonassayfu/Herd/Negadras/app/Http/Requests/Admin/StoreSessionPresenterRequest.php)
+- [app/Http/Requests/Admin/ReorderSessionPresentersRequest.php](/Users/yonassayfu/Herd/Negadras/app/Http/Requests/Admin/ReorderSessionPresentersRequest.php)
+- [app/Http/Requests/Admin/TransitionCompetitionSessionRequest.php](/Users/yonassayfu/Herd/Negadras/app/Http/Requests/Admin/TransitionCompetitionSessionRequest.php)
+- [app/Http/Requests/Admin/UpdateProjectionSessionRequest.php](/Users/yonassayfu/Herd/Negadras/app/Http/Requests/Admin/UpdateProjectionSessionRequest.php)
+
+Important cleanup made during the phase:
+
+```diff
+- chained nullsafe relation into submissionAssignments()->with(...)
++ guarded missing panel explicitly before querying available submissions
+```
+
+Why:
+
+- the earlier chain could still reach a method call on `null`
+- this is easy to miss in review because the `?->` visually suggests the whole chain is safe
+- explicit guards are clearer in business-critical controller code
+
+#### Judge live view
+
+- [app/Http/Controllers/JudgeLiveSessionController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/JudgeLiveSessionController.php)
+- [resources/js/pages/judges/LiveIndex.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/judges/LiveIndex.vue)
+- [resources/js/pages/judges/LiveShow.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/judges/LiveShow.vue)
+
+What changed conceptually:
+
+- the normal judge workspace is assignment-centric
+- the live judge view is session-centric
+- the screen needs the current presenter, next presenter, score progress, and submission files in one faster layout
+
+Important controller correction:
+
+```diff
+- $competitionSession->panel?->rubric?->criteria->map(...)
++ $rubricCriteria = $competitionSession->panel?->rubric?->criteria ?? collect()
++ $rubricCriteria->map(...)
+```
+
+Why:
+
+- nullsafe access stops only the immediate property/method access
+- the later `->map()` would still fail if the criteria collection was `null`
+- guarding it once makes the render payload safe
+
+#### Moderator and studio frontend
+
+- [resources/js/pages/admin/CompetitionSessions/Index.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/CompetitionSessions/Index.vue)
+- [resources/js/pages/admin/CompetitionSessions/Create.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/CompetitionSessions/Create.vue)
+- [resources/js/pages/admin/CompetitionSessions/Edit.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/CompetitionSessions/Edit.vue)
+- [resources/js/pages/admin/CompetitionSessions/Show.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/CompetitionSessions/Show.vue)
+- [resources/js/pages/admin/LiveSessions/Show.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/LiveSessions/Show.vue)
+- [resources/js/pages/live-dashboard/Show.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/live-dashboard/Show.vue)
+
+What the moderator page now does:
+
+- start, pause, resume, and complete a session
+- activate or advance presenters
+- reorder the presenter queue
+- reveal or hide scores
+- request, approve, or end projection
+- watch live judge completion and current aggregate state
+
+Important UX fix made during closeout:
+
+```diff
+- queue save posted the original props order back to the server
++ queue is now locally reorderable with up/down controls
++ queue state resyncs when polling reloads fresh session props
+```
+
+Why:
+
+- a save button without real local reordering is misleading
+- polling can overwrite local state if the page never resyncs the reactive queue copy
+- the page now behaves honestly for the MVP
+
+#### Route generation and TypeScript route proxies
+
+- [routes/web.php](/Users/yonassayfu/Herd/Negadras/routes/web.php)
+- [resources/js/routes/live-sessions.ts](/Users/yonassayfu/Herd/Negadras/resources/js/routes/live-sessions.ts)
+- [resources/js/routes/live-dashboard.ts](/Users/yonassayfu/Herd/Negadras/resources/js/routes/live-dashboard.ts)
+- [resources/js/routes/panel-scoring.ts](/Users/yonassayfu/Herd/Negadras/resources/js/routes/panel-scoring.ts)
+
+What was needed:
+
+```diff
++ flat re-export proxies for generated route folders
+```
+
+Why:
+
+- this repo already uses a mixed pattern where some pages import route helpers from flat module names
+- generated Wayfinder folders exist under `resources/js/routes/<name>/index.ts`
+- a few pages and existing imports expected flat module paths like `@/routes/live-sessions`
+- the proxies keep the generated structure intact while making TypeScript resolution stable
+
+#### RBAC and policy layer
+
+- [app/Policies/CompetitionSessionPolicy.php](/Users/yonassayfu/Herd/Negadras/app/Policies/CompetitionSessionPolicy.php)
+- [app/Policies/SessionPresenterPolicy.php](/Users/yonassayfu/Herd/Negadras/app/Policies/SessionPresenterPolicy.php)
+- [app/Policies/DashboardProjectionSessionPolicy.php](/Users/yonassayfu/Herd/Negadras/app/Policies/DashboardProjectionSessionPolicy.php)
+- [app/Providers/AppServiceProvider.php](/Users/yonassayfu/Herd/Negadras/app/Providers/AppServiceProvider.php)
+- [database/seeders/RolePermissionSeeder.php](/Users/yonassayfu/Herd/Negadras/database/seeders/RolePermissionSeeder.php)
+- [resources/js/navigation/app.ts](/Users/yonassayfu/Herd/Negadras/resources/js/navigation/app.ts)
+
+New permission surface:
+
+```diff
++ competition-sessions.view
++ competition-sessions.create
++ competition-sessions.update
++ live-operations.view
++ live-operations.update
++ live-dashboard.view
++ judge-live.view
++ Production Team role
+```
+
+Why:
+
+- live-day operations are not regular admin CRUD
+- moderation, projection, judge-live, and public dashboard access need explicit boundaries
+- the `Production Team` role lets operational staff participate without broader admin authority
+
+### Tests added
+
+- [tests/Feature/CompetitionSessionManagementTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/CompetitionSessionManagementTest.php)
+- [tests/Feature/LiveSessionModeratorFlowTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/LiveSessionModeratorFlowTest.php)
+- [tests/Feature/JudgeLiveSessionAccessTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/JudgeLiveSessionAccessTest.php)
+- [tests/Feature/LiveDashboardVisibilityTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/LiveDashboardVisibilityTest.php)
+
+What they prove:
+
+- manager can create and inspect competition sessions
+- moderator can start a session, advance presenters, reveal scores, and reorder the queue
+- judge live access is constrained to panel membership
+- public live dashboard respects reveal privacy before scores are exposed
+
+### Laravel takeaways from this phase
+
+1. For live workflows, split the audit stream from the fast read model. `session_events` and `live_status_snapshots` serve different jobs.
+2. Do not overcommit to websocket infrastructure before the domain model is stable. A polling-first transport can still be architecturally clean.
+3. Nullsafe chains are not a substitute for business guards when later collection methods are involved.
+4. In Inertia + Wayfinder codebases, route-shape errors usually appear in `vue-tsc` before they show up in the browser.
+5. Live operator screens need honest interactions. If the queue can be saved, it must be truly reorderable.
+
+### Practical Negadras result
+
+At the end of this phase:
+
+- Negadras can schedule live competition sessions
+- moderators can operate the session flow safely
+- judges have a session-aware live scoring surface
+- the studio can open a live dashboard without private details leaking early
+- projection actions are structured and auditable
+- the system is ready for future broadcasting without requiring it today
+
+What is intentionally still outside this phase:
+
+- true websocket broadcasting with Reverb/Echo
+- live countdown timer orchestration
+- public comments/highlights reveal rules
+- post-session ranking, awards, and archive publication

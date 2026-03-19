@@ -71,4 +71,9 @@ class PanelSubmissionAssignment extends Model
     {
         return $this->hasOne(ScoreLock::class)->latestOfMany('locked_at');
     }
+
+    public function competitionSession(): BelongsTo
+    {
+        return $this->belongsTo(CompetitionSession::class, 'session_id_optional');
+    }
 }

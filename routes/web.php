@@ -2,8 +2,10 @@
 
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\Admin\ApplicantManagementController;
+use App\Http\Controllers\Admin\CompetitionSessionManagementController;
 use App\Http\Controllers\Admin\IndustryManagementController;
 use App\Http\Controllers\Admin\JudgeManagementController;
+use App\Http\Controllers\Admin\LiveSessionController;
 use App\Http\Controllers\Admin\MediaManagementController;
 use App\Http\Controllers\Admin\NoteManagementController;
 use App\Http\Controllers\Admin\OrganizationManagementController;
@@ -27,7 +29,9 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExportCenterController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\HandbookController;
+use App\Http\Controllers\JudgeLiveSessionController;
 use App\Http\Controllers\JudgeWorkspaceController;
+use App\Http\Controllers\LiveDashboardController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PublicPageController;
 use App\Http\Controllers\ReportsController;
@@ -116,6 +120,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('judge/workspace', [JudgeWorkspaceController::class, 'index'])
         ->middleware('permission:judge-workspace.view')
         ->name('judge-workspace.index');
+
+    Route::get('judge/live-sessions', [JudgeLiveSessionController::class, 'index'])
+        ->middleware('permission:judge-live.view')
+        ->name('judge-live.index');
+
+    Route::get('judge/live-sessions/{competitionSession}', [JudgeLiveSessionController::class, 'show'])
+        ->middleware('permission:judge-live.view')
+        ->name('judge-live.show');
 
     Route::get('judge/assignments/{panelSubmissionAssignment}', [JudgeWorkspaceController::class, 'show'])
         ->middleware('permission:judge-workspace.view')
@@ -260,6 +272,50 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('admin/reviewers', [ReviewerManagementController::class, 'index'])
         ->middleware('permission:reviewers.view')
         ->name('reviewers.index');
+
+    Route::get('admin/competition-sessions', [CompetitionSessionManagementController::class, 'index'])
+        ->middleware('permission:competition-sessions.view')
+        ->name('competition-sessions.index');
+
+    Route::get('admin/competition-sessions/create', [CompetitionSessionManagementController::class, 'create'])
+        ->middleware('permission:competition-sessions.create')
+        ->name('competition-sessions.create');
+
+    Route::post('admin/competition-sessions', [CompetitionSessionManagementController::class, 'store'])
+        ->middleware('permission:competition-sessions.create')
+        ->name('competition-sessions.store');
+
+    Route::get('admin/competition-sessions/{competitionSession}', [CompetitionSessionManagementController::class, 'show'])
+        ->middleware('permission:competition-sessions.view')
+        ->name('competition-sessions.show');
+
+    Route::get('admin/competition-sessions/{competitionSession}/edit', [CompetitionSessionManagementController::class, 'edit'])
+        ->middleware('permission:competition-sessions.update')
+        ->name('competition-sessions.edit');
+
+    Route::put('admin/competition-sessions/{competitionSession}', [CompetitionSessionManagementController::class, 'update'])
+        ->middleware('permission:competition-sessions.update')
+        ->name('competition-sessions.update');
+
+    Route::get('admin/live-sessions/{competitionSession}', [LiveSessionController::class, 'show'])
+        ->middleware('permission:live-operations.view')
+        ->name('live-sessions.show');
+
+    Route::post('admin/live-sessions/{competitionSession}/presenters', [LiveSessionController::class, 'storePresenter'])
+        ->middleware('permission:live-operations.update')
+        ->name('live-sessions.presenters.store');
+
+    Route::put('admin/live-sessions/{competitionSession}/queue', [LiveSessionController::class, 'reorder'])
+        ->middleware('permission:live-operations.update')
+        ->name('live-sessions.queue.update');
+
+    Route::post('admin/live-sessions/{competitionSession}/transition', [LiveSessionController::class, 'transition'])
+        ->middleware('permission:live-operations.update')
+        ->name('live-sessions.transition');
+
+    Route::put('admin/live-sessions/{competitionSession}/projection', [LiveSessionController::class, 'updateProjection'])
+        ->middleware('permission:live-operations.update')
+        ->name('live-sessions.projection.update');
 
     Route::get('admin/judges', [JudgeManagementController::class, 'index'])
         ->middleware('permission:judges.view')
@@ -599,5 +655,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 require __DIR__.'/settings.php';
+
+Route::get('live-dashboard/{competitionSession}', [LiveDashboardController::class, 'show'])
+    ->name('live-dashboard.show');
 
 Route::get('{page:slug}', PublicPageController::class)->name('public-pages.show');

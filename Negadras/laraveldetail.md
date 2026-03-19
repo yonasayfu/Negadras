@@ -2838,4 +2838,401 @@ What is still intentionally not done in this phase:
 - secretary-specific assignment queue
 - reviewer assignment from the intake list
 
+## Entry 008: Phase N1 Presenter Portal UX Refinement and Dashboard Operations
+
+### Scope
+
+This batch closed the presenter-facing UX gap that was still left after the intake foundation.
+
+The goal was to make Negadras usable from the presenter side, not only structurally correct in the admin flow.
+
+This phase added:
+
+- current season and open-call visibility
+- presenter submission counters
+- stronger create-submission CTA rules
+- progress indicators on submission forms
+- draft-only autosave for editable submissions
+- Negadras-specific dashboard metrics for both presenter and staff views
+
+### The core design decision
+
+The important decision in this phase was:
+
+- keep explicit `Save draft` and `Final submit`
+- add autosave only as a background convenience for editable draft fields
+- do not let autosave blur the actual submission boundary
+
+That is why autosave is:
+
+- only on the edit page
+- only for presenter-owned editable submissions
+- separate from the final submit route
+
+This keeps the business rule clear: autosave is not submission.
+
+### Files and why they changed
+
+#### [app/Http/Controllers/DashboardController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/DashboardController.php)
+
+Before:
+
+```diff
+- dashboard still reflected generic starter-business metrics
+- pages/media/imports/users were the main focus
+- no presenter counters
+- no current season visibility
+```
+
+After:
+
+```diff
++ currentSeason summary
++ presenterPortal payload
++ operations metrics for Negadras submission workflow
++ submissionBreakdown for staff
++ recentSubmissions list
++ platformHealth kept as the shared business baseline
+```
+
+Why:
+
+- the old dashboard was technically valid but operationally wrong for Negadras
+- presenters need to know whether the call is open and how many drafts or returned records they have
+- staff need immediate counts for total, returned, eligible, and active season visibility
+
+Important implementation detail:
+
+```diff
++ private function currentSeason(): ?Season
++ private function seasonSummary(?Season $season): ?array
++ private function presenterPortal(?Applicant $applicant, ?Season $currentSeason): ?array
+```
+
+Why this matters:
+
+- season visibility rules are now centralized instead of spread across frontend conditionals
+- the dashboard payload now describes business state directly
+
+#### [app/Http/Controllers/SubmissionController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/SubmissionController.php)
+
+This file changed in three important ways.
+
+First, the submission index now returns presenter counters and open-call context.
+
+Before:
+
+```diff
+- only hasApplicantProfile
+- only raw submission list
+```
+
+After:
+
+```diff
++ openSeason
++ submissionCounts
+```
+
+Why:
+
+- the presenter submission list should behave like a working portal, not a plain record index
+- the user needs to see draft/submitted/returned state before opening a specific record
+
+Second, the create and edit pages now receive `openSeason`.
+
+Why:
+
+- the forms should show the current call boundary while the presenter is editing
+- this makes the season window visible at the point of action, not only on the dashboard
+
+Third, a new autosave endpoint was added.
+
+New method:
+
+```diff
++ public function autosave(UpdateSubmissionRequest $request, Submission $submission): JsonResponse
+```
+
+Key guard logic:
+
+```diff
++ abort_unless(
++     $request->user() !== null
++         && $submission->isOwnedBy($request->user())
++         && $submission->status->allowsPresenterEdits(),
++     403,
++ );
+```
+
+Why:
+
+- policy `update()` also allows staff with `submissions.update`
+- autosave must not become a generic staff-edit endpoint
+- only the owning presenter can silently autosave the draft
+
+This is one of those places where policy-level access and business-intent access are not identical.
+
+#### [routes/web.php](/Users/yonassayfu/Herd/Negadras/routes/web.php)
+
+New route:
+
+```diff
++ Route::put('submissions/{submission}/autosave', [SubmissionController::class, 'autosave'])->name('submissions.autosave');
+```
+
+Why:
+
+- explicit save and final submit already existed
+- autosave needed a separate endpoint with a different response shape
+- reusing the main update route would have redirected the page and broken the draft-edit flow
+
+This is a good Laravel lesson:
+
+- if two user actions have different transport/response expectations, they usually deserve separate endpoints even if they touch the same model
+
+#### [resources/js/pages/Dashboard.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/Dashboard.vue)
+
+This page was heavily reworked.
+
+Before:
+
+```diff
+- business starter workspace
+- generic reports/pages/import links
+- generic report highlight cards
+```
+
+After:
+
+```diff
++ current season panel
++ presenter portal panel
++ presenter counters
++ recent presenter submissions
++ operational submission breakdown
++ recent submission activity
++ platform baseline block kept as secondary
+```
+
+Why:
+
+- Negadras no longer needs a generic starter dashboard as the primary surface
+- the dashboard must now answer:
+  - Is the season open?
+  - Can I create a submission?
+  - How many drafts/returned items exist?
+  - What is the intake team seeing right now?
+
+This file now serves both presenter and staff use cases in one page without creating two dashboard routes too early.
+
+#### [resources/js/pages/submissions/Index.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/submissions/Index.vue)
+
+Before:
+
+```diff
+- list page with create button
+- profile-required empty state
+- basic submission cards
+```
+
+After:
+
+```diff
++ current season/open-call card
++ draft/submitted/returned/total counters
++ CTA changes based on presenter profile and open call state
++ closed-call message when new draft creation should pause
+```
+
+Why:
+
+- this page is the real presenter workspace, not just a list of rows
+- the CTA must change based on business state:
+  - no profile -> complete presenter profile
+  - profile + open call -> create submission
+  - profile + closed call -> CTA disabled
+
+That conditional CTA is one of the most important UX upgrades in this batch.
+
+#### [resources/js/pages/submissions/Create.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/submissions/Create.vue)
+
+What changed:
+
+```diff
++ computed progressSections
++ computed progressPercentage
++ submission progress card
++ current open call card
+```
+
+Why:
+
+- the form is still single-page, but it behaves like a structured multi-part workflow
+- presenters need immediate signal on how complete the draft is
+
+Key pattern:
+
+```diff
++ const progressSections = computed(() => [
++   { key: 'structure', completed: ..., total: 4 },
++   { key: 'narrative', completed: ..., total: 4 },
++   { key: 'visibility', completed: ..., total: 1 },
++ ]);
+```
+
+Why this pattern is good:
+
+- the progress UI is derived from form state, not stored separately
+- no extra synchronization bug is introduced
+
+#### [resources/js/pages/submissions/Edit.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/submissions/Edit.vue)
+
+This file got the most important UX logic in the phase.
+
+New parts:
+
+```diff
++ progressSections including required files
++ progressPercentage
++ autosaveState
++ autosavedAt
++ autosavePayload
++ canAutosave
++ saveDraftSilently()
++ debounced watch() based autosave
+```
+
+The most important code path:
+
+```diff
++ if (! canAutosave.value || form.processing) {
++     return;
++ }
+```
+
+Why:
+
+- autosave should not fight explicit form submission
+- autosave should stop if the minimum draft structure is not present
+
+The fetch boundary:
+
+```diff
++ const response = await fetch(autosaveSubmission(props.submission.id).url, {
++     method: 'PUT',
++     headers: {
++         'Accept': 'application/json',
++         'Content-Type': 'application/json',
++         'X-CSRF-TOKEN': csrfToken,
++         'X-Requested-With': 'XMLHttpRequest',
++     },
++     body: JSON.stringify(autosavePayload.value),
++     credentials: 'same-origin',
++ });
+```
+
+Why this approach was chosen:
+
+- the Inertia form helpers are ideal for explicit actions
+- autosave needed a silent JSON roundtrip
+- using the main update form path would have redirected and interrupted editing
+
+Also important:
+
+```diff
++ requiredFileTypes
++ uploadedRequiredFileTypes
+```
+
+Why:
+
+- submission progress should not ignore required files once the record exists
+- edit progress is now more honest than create progress
+
+#### [tests/Feature/PresenterPortalDashboardTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/PresenterPortalDashboardTest.php)
+
+This new test proves:
+
+- an applicant with a signed-in user sees current season visibility
+- open-call state is exposed correctly
+- draft/submitted/returned/total counts are returned correctly
+- recent presenter submissions are included in the dashboard props
+
+Why:
+
+- this phase introduced a lot of derived dashboard state
+- without a dedicated test, the presenter portal could drift as later phases add more statuses
+
+#### [tests/Feature/DashboardWidgetsTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/DashboardWidgetsTest.php)
+
+Before:
+
+```diff
+- asserted old generic starter-business dashboard props
+```
+
+After:
+
+```diff
++ asserts operations.metrics
++ asserts submission breakdown exists
++ asserts currentSeason
++ asserts returned count and platform health values
+```
+
+Why:
+
+- Negadras replaced the generic dashboard contract
+- the test had to move with the real dashboard purpose
+
+#### [tests/Feature/SubmissionFlowTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/SubmissionFlowTest.php)
+
+New test:
+
+```diff
++ presenter can autosave an editable draft without final submission
+```
+
+Why:
+
+- autosave is easy to implement incorrectly
+- this test proves:
+  - the title and summary really change
+  - the submission remains `draft`
+  - `submitted_at` stays null
+
+That last point is critical. Autosave must never behave like submit.
+
+### Laravel takeaways from this phase
+
+1. A dashboard should change when the application identity changes. Reusing a generic starter dashboard too long becomes technical correctness with bad product behavior.
+2. Business state like "open for applications" should be computed on the server and shipped as explicit props, not re-derived independently on multiple pages.
+3. Autosave is safer when it is intentionally narrower than the main update flow.
+4. Silent JSON endpoints are a valid complement to Inertia when the UX requires non-navigating persistence.
+5. Progress indicators should come from live form state and file state, not stored percentages.
+
+### Practical Negadras result
+
+At the end of this phase:
+
+- presenters can immediately see whether the current season is open
+- presenters see draft, submitted, returned, and total counts
+- the create-submission CTA now respects profile readiness and open-call state
+- submission create/edit pages show completion progress
+- editable drafts autosave in the background
+- staff and presenters now see a Negadras-specific dashboard instead of the old starter-business one
+
+### Progress position after this phase
+
+Using the current detailed tracker:
+
+- Phase N1 is roughly **79% complete**
+- the full tracked Negadras roadmap is roughly **21% complete**
+
+This is the correct shape right now:
+
+- the foundational domain and presenter intake flow are getting strong
+- judging, assignments, live session tooling, public showcase, AI advisory, and hardening are still ahead
+
 Those belong to later operational and review phases.

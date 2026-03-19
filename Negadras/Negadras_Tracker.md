@@ -103,7 +103,11 @@ Current progress:
 - submission file upload foundation completed
 - submission status tracking foundation completed
 - intake management foundation completed
-- seasons, stages, industries, applicants, social links, organizations, team members, submission intake, submission versioning, private submission file handling, status history tracking, and intake operations are now in place
+- presenter portal UX refinement and dashboard operations completed
+- seasons, stages, industries, applicants, social links, organizations, team members, submission intake, submission versioning, private submission file handling, status history tracking, intake operations, presenter counters, open-call visibility, and dashboard metrics are now in place
+- checklist estimate:
+  - Phase N1 detail backlog is roughly 79% complete
+  - full multi-phase roadmap is roughly 21% complete
 
 ### Phase N2: Operational Workflow
 

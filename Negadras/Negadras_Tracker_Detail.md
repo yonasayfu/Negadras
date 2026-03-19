@@ -327,16 +327,16 @@ Do not add later complex statuses yet.
 
 ### I2. Submission UX
 
-* [ ] Show current season open for applications
-* [ ] Show draft count
-* [ ] Show submitted count
-* [ ] Show returned submissions needing correction
-* [ ] Add clear CTA: Create New Submission
-* [ ] Add progress indicator on multi-step form
+* [x] Show current season open for applications
+* [x] Show draft count
+* [x] Show submitted count
+* [x] Show returned submissions needing correction
+* [x] Add clear CTA: Create New Submission
+* [x] Add progress indicator on multi-step form
 
 ### I3. Usability
 
-* [ ] Add autosave if possible
+* [x] Add autosave if possible
 * [ ] Show validation errors clearly
 * [ ] Show uploaded file previews where possible
 * [ ] Show strong success messages
@@ -348,24 +348,24 @@ Do not add later complex statuses yet.
 
 ### J1. Basic Negadras Metrics
 
-* [ ] Total submissions
-* [ ] Submissions by status
+* [x] Total submissions
+* [x] Submissions by status
 * [ ] Submissions by industry
-* [ ] Current active season
-* [ ] Returned incomplete count
-* [ ] Eligible count
+* [x] Current active season
+* [x] Returned incomplete count
+* [x] Eligible count
 
 ### J2. Quick Actions
 
 * [ ] Create season
 * [ ] Create stage
 * [ ] Create industry
-* [ ] View intake queue
+* [x] View intake queue
 * [ ] View recent submissions
 
 ### J3. Recent Activity
 
-* [ ] Recently submitted projects
+* [x] Recently submitted projects
 * [ ] Recently changed statuses
 * [ ] Recently created applicants
 * [ ] Recently uploaded files

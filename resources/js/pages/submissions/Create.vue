@@ -21,6 +21,18 @@ type Props = {
     stageOptions: SubmissionStageOption[];
     industryOptions: SelectOption[];
     organizationOptions: SelectOption[];
+    openSeason: {
+        id: number;
+        name: string;
+        year: number;
+        description: string | null;
+        registrationOpenAt: string | null;
+        registrationCloseAt: string | null;
+        isOpenForApplications: boolean;
+        registrationLabel: string;
+        statusLabel: string;
+        statusTone: string;
+    } | null;
 };
 
 const props = defineProps<Props>();
@@ -53,6 +65,50 @@ const form = useForm({
 const availableStages = computed(() =>
     props.stageOptions.filter((stage) => String(stage.seasonId) === form.season_id),
 );
+
+const progressSections = computed(() => {
+    const structureCompleted = [
+        form.season_id !== '',
+        form.current_stage_id !== '',
+        form.industry_id !== '',
+        form.title.trim() !== '',
+    ].filter(Boolean).length;
+
+    const narrativeCompleted = [
+        form.summary.trim() !== '',
+        form.problem_statement.trim() !== '',
+        form.solution_description.trim() !== '',
+        form.business_model.trim() !== '',
+    ].filter(Boolean).length;
+
+    return [
+        {
+            key: 'structure',
+            title: 'Structure',
+            completed: structureCompleted,
+            total: 4,
+        },
+        {
+            key: 'narrative',
+            title: 'Narrative',
+            completed: narrativeCompleted,
+            total: 4,
+        },
+        {
+            key: 'visibility',
+            title: 'Visibility',
+            completed: form.is_public_after_approval ? 1 : 0,
+            total: 1,
+        },
+    ];
+});
+
+const progressPercentage = computed(() => {
+    const completed = progressSections.value.reduce((carry, section) => carry + section.completed, 0);
+    const total = progressSections.value.reduce((carry, section) => carry + section.total, 0);
+
+    return Math.round((completed / total) * 100);
+});
 
 const submitDraft = (): void => {
     form.transform((data) => ({
@@ -89,6 +145,46 @@ const submitFinal = (): void => {
                     </Button>
                 </template>
             </PageHeader>
+
+            <section class="grid gap-4 xl:grid-cols-[1fr_0.9fr]">
+                <div class="rounded-[1.5rem] border border-border/70 bg-card/85 p-5 shadow-sm">
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <h2 class="text-lg font-semibold">Submission progress</h2>
+                            <p class="text-sm text-muted-foreground">This is a single-page flow, but the intake sections still need to be completed deliberately.</p>
+                        </div>
+                        <div class="text-2xl font-semibold">{{ progressPercentage }}%</div>
+                    </div>
+
+                    <div class="mt-4 h-3 overflow-hidden rounded-full bg-muted">
+                        <div class="h-full rounded-full bg-primary transition-all" :style="{ width: `${progressPercentage}%` }" />
+                    </div>
+
+                    <div class="mt-5 grid gap-3 md:grid-cols-3">
+                        <div
+                            v-for="section in progressSections"
+                            :key="section.key"
+                            class="rounded-2xl border border-border/70 bg-background/70 p-4"
+                        >
+                            <div class="text-sm text-muted-foreground">{{ section.title }}</div>
+                            <div class="mt-1 text-lg font-semibold">{{ section.completed }}/{{ section.total }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rounded-[1.5rem] border border-border/70 bg-card/85 p-5 shadow-sm">
+                    <h2 class="text-lg font-semibold">Current open call</h2>
+                    <p class="mt-2 text-sm leading-6 text-muted-foreground">
+                        {{ openSeason ? `${openSeason.name} ${openSeason.year}` : 'No active season is currently configured.' }}
+                    </p>
+                    <div v-if="openSeason" class="mt-4 rounded-2xl border border-border/70 bg-background/70 p-4">
+                        <div class="font-medium">{{ openSeason.registrationLabel }}</div>
+                        <p class="mt-2 text-sm text-muted-foreground">
+                            {{ openSeason.description || 'Use this season boundary when deciding whether to start or finalize a draft.' }}
+                        </p>
+                    </div>
+                </div>
+            </section>
 
             <form class="grid gap-6" @submit.prevent="submitDraft">
                 <FormSection title="Structure" description="Every submission must point to one season, one stage, one industry, and one presenter profile.">

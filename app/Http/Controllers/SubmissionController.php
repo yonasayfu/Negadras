@@ -12,12 +12,14 @@ use App\Models\Stage;
 use App\Models\Submission;
 use App\Models\SubmissionFile;
 use App\Models\SubmissionStatusHistory;
+use App\SeasonStatus;
 use App\SubmissionStatus;
 use App\Support\ActivityLogger;
 use App\Support\SubmissionFileBinder;
 use App\Support\SubmissionFileRegistry;
 use App\Support\SubmissionStatusTransitionService;
 use App\Support\SubmissionVersionSnapshotter;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -32,11 +34,31 @@ class SubmissionController extends Controller
 
         $applicant = $request->user()?->applicant;
         $submissions = collect();
+        $submissionCounts = [
+            'draft' => 0,
+            'submitted' => 0,
+            'returned' => 0,
+            'total' => 0,
+        ];
 
         if ($applicant !== null) {
-            $submissions = Submission::query()
+            $submissionQuery = Submission::query()
                 ->where('applicant_id', $applicant->id)
-                ->with(['season:id,name', 'currentStage:id,name', 'industry:id,name', 'organization:id,display_name'])
+                ->with(['season:id,name', 'currentStage:id,name', 'industry:id,name', 'organization:id,display_name']);
+
+            $submissionCounts = [
+                'draft' => (clone $submissionQuery)->where('status', SubmissionStatus::Draft)->count(),
+                'submitted' => (clone $submissionQuery)->whereIn('status', [
+                    SubmissionStatus::Submitted,
+                    SubmissionStatus::UnderIntakeCheck,
+                    SubmissionStatus::Eligible,
+                    SubmissionStatus::Rejected,
+                ])->count(),
+                'returned' => (clone $submissionQuery)->where('status', SubmissionStatus::IncompleteReturned)->count(),
+                'total' => (clone $submissionQuery)->count(),
+            ];
+
+            $submissions = (clone $submissionQuery)
                 ->latest()
                 ->get()
                 ->map(fn (Submission $submission): array => $this->submissionSummary($submission));
@@ -44,6 +66,8 @@ class SubmissionController extends Controller
 
         return Inertia::render('submissions/Index', [
             'hasApplicantProfile' => $applicant !== null,
+            'openSeason' => $this->seasonSummary($this->currentSeason()),
+            'submissionCounts' => $submissionCounts,
             'submissions' => $submissions->values()->all(),
         ]);
     }
@@ -64,6 +88,7 @@ class SubmissionController extends Controller
             'industryOptions' => $this->industryOptions(),
             'organizationOptions' => $this->organizationOptions($applicant),
             'submissionFileDefinitions' => $this->submissionFileDefinitions(),
+            'openSeason' => $this->seasonSummary($this->currentSeason()),
         ]);
     }
 
@@ -168,6 +193,27 @@ class SubmissionController extends Controller
             'industryOptions' => $this->industryOptions(),
             'organizationOptions' => $this->organizationOptions($submission->applicant),
             'submissionFileDefinitions' => $this->submissionFileDefinitions(),
+            'openSeason' => $this->seasonSummary($this->currentSeason()),
+        ]);
+    }
+
+    public function autosave(UpdateSubmissionRequest $request, Submission $submission): JsonResponse
+    {
+        $this->authorize('update', $submission);
+
+        abort_unless(
+            $request->user() !== null
+                && $submission->isOwnedBy($request->user())
+                && $submission->status->allowsPresenterEdits(),
+            403,
+        );
+
+        $submission->update([
+            ...$request->safe()->except('intent'),
+        ]);
+
+        return response()->json([
+            'savedAt' => $submission->fresh()->updated_at?->toDateTimeString(),
         ]);
     }
 
@@ -332,6 +378,66 @@ class SubmissionController extends Controller
             'updatedAt' => $submission->updated_at?->toDateTimeString(),
             'canEdit' => $submission->isEditableByPresenter(),
         ];
+    }
+
+    private function currentSeason(): ?Season
+    {
+        return Season::query()
+            ->where('status', SeasonStatus::Active)
+            ->orderByDesc('year')
+            ->orderByDesc('registration_open_at')
+            ->first();
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function seasonSummary(?Season $season): ?array
+    {
+        if ($season === null) {
+            return null;
+        }
+
+        $isOpenForApplications = $this->isSeasonOpenForApplications($season);
+        $registrationLabel = 'Open for applications';
+
+        if (! $isOpenForApplications && $season->registration_open_at !== null && $season->registration_open_at->isFuture()) {
+            $registrationLabel = 'Applications open soon';
+        } elseif (! $isOpenForApplications) {
+            $registrationLabel = 'Applications currently closed';
+        }
+
+        return [
+            'id' => $season->id,
+            'name' => $season->name,
+            'year' => $season->year,
+            'description' => $season->description,
+            'registrationOpenAt' => $season->registration_open_at?->toDateTimeString(),
+            'registrationCloseAt' => $season->registration_close_at?->toDateTimeString(),
+            'isOpenForApplications' => $isOpenForApplications,
+            'registrationLabel' => $registrationLabel,
+            'statusLabel' => $season->status->label(),
+            'statusTone' => $season->status->tone(),
+        ];
+    }
+
+    private function isSeasonOpenForApplications(?Season $season): bool
+    {
+        if ($season === null || $season->status !== SeasonStatus::Active) {
+            return false;
+        }
+
+        $now = now();
+
+        if ($season->registration_open_at !== null && $season->registration_open_at->isAfter($now)) {
+            return false;
+        }
+
+        if ($season->registration_close_at !== null && $season->registration_close_at->isBefore($now)) {
+            return false;
+        }
+
+        return true;
     }
 
     /**

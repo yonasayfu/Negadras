@@ -94,6 +94,49 @@ test('presenter can save a draft submission and later submit it', function () {
         ->and($submission->fresh()->organization_id)->toBe($organization->id);
 });
 
+test('presenter can autosave an editable draft without final submission', function () {
+    $user = User::factory()->create();
+    $applicant = Applicant::factory()->create([
+        'user_id' => $user->id,
+    ]);
+    $season = Season::factory()->create();
+    $stage = Stage::factory()->create([
+        'season_id' => $season->id,
+    ]);
+    $industry = Industry::factory()->create();
+
+    $submission = Submission::factory()->create([
+        'applicant_id' => $applicant->id,
+        'season_id' => $season->id,
+        'current_stage_id' => $stage->id,
+        'industry_id' => $industry->id,
+        'status' => SubmissionStatus::Draft,
+        'title' => 'Original title',
+    ]);
+
+    $this->actingAs($user)
+        ->putJson(route('submissions.autosave', $submission), [
+            'intent' => 'draft',
+            'season_id' => $season->id,
+            'current_stage_id' => $stage->id,
+            'industry_id' => $industry->id,
+            'organization_id' => null,
+            'title' => 'Autosaved title',
+            'summary' => 'Autosaved summary',
+            'problem_statement' => 'Autosaved problem statement',
+            'solution_description' => 'Autosaved solution description',
+            'business_model' => 'Autosaved business model',
+            'is_public_after_approval' => false,
+        ])
+        ->assertOk()
+        ->assertJsonStructure(['savedAt']);
+
+    expect($submission->fresh()->title)->toBe('Autosaved title')
+        ->and($submission->fresh()->summary)->toBe('Autosaved summary')
+        ->and($submission->fresh()->status)->toBe(SubmissionStatus::Draft)
+        ->and($submission->fresh()->submitted_at)->toBeNull();
+});
+
 test('presenter cannot view another presenters submission', function () {
     $owner = User::factory()->create();
     $ownerApplicant = Applicant::factory()->create([

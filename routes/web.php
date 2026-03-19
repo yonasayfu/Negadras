@@ -49,6 +49,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::put('submissions/{submission}', [SubmissionController::class, 'update'])->name('submissions.update');
 
+    Route::put('submissions/{submission}/autosave', [SubmissionController::class, 'autosave'])->name('submissions.autosave');
+
     Route::delete('submissions/{submission}', [SubmissionController::class, 'destroy'])->name('submissions.destroy');
 
     Route::post('submissions/{submission}/files', [SubmissionFileController::class, 'store'])->name('submission-files.store');

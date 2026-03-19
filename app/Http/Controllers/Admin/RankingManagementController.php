@@ -8,7 +8,9 @@ use App\Http\Requests\Admin\UpdateRankingSnapshotRequest;
 use App\Models\CompetitionSession;
 use App\Models\RankingSnapshot;
 use App\Models\Stage;
+use App\OverrideEventType;
 use App\Support\ActivityLogger;
+use App\Support\GovernanceRecorder;
 use App\Support\RankingSnapshotBuilder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -106,9 +108,17 @@ class RankingManagementController extends Controller
         ])->with('success', 'Ranking snapshot generated successfully.');
     }
 
-    public function update(UpdateRankingSnapshotRequest $request, RankingSnapshot $rankingSnapshot): RedirectResponse
-    {
+    public function update(
+        UpdateRankingSnapshotRequest $request,
+        RankingSnapshot $rankingSnapshot,
+        GovernanceRecorder $governance,
+    ): RedirectResponse {
         $this->authorize('update', $rankingSnapshot);
+
+        $beforeState = [
+            'rank_position' => $rankingSnapshot->rank_position,
+            'override_reason_optional' => $rankingSnapshot->override_reason_optional,
+        ];
 
         $rankingSnapshot->update([
             'rank_position' => $request->integer('rank_position'),
@@ -125,6 +135,18 @@ class RankingManagementController extends Controller
                 'rank_position' => $rankingSnapshot->rank_position,
             ],
             request: $request,
+        );
+
+        $governance->record(
+            eventType: OverrideEventType::RankingOverride,
+            actor: $request->user(),
+            reason: $rankingSnapshot->override_reason_optional,
+            submission: $rankingSnapshot->submission,
+            beforeState: $beforeState,
+            afterState: [
+                'rank_position' => $rankingSnapshot->rank_position,
+                'override_reason_optional' => $rankingSnapshot->override_reason_optional,
+            ],
         );
 
         return back()->with('success', 'Ranking record updated successfully.');

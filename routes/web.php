@@ -32,6 +32,7 @@ use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExportCenterController;
 use App\Http\Controllers\GlobalSearchController;
+use App\Http\Controllers\GovernanceController;
 use App\Http\Controllers\HandbookController;
 use App\Http\Controllers\JudgeLiveSessionController;
 use App\Http\Controllers\JudgeWorkspaceController;
@@ -97,10 +98,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:reports.view')
         ->name('reports.index');
 
-    Route::get('reports/pages.csv', [ReportsController::class, 'pagesCsv'])
-        ->middleware('permission:reports.view')
-        ->name('reports.pages.csv');
-
     Route::get('reviewer/queue', [ReviewerQueueController::class, 'index'])
         ->middleware('permission:reviewer-queue.view')
         ->name('reviewer-queue.index');
@@ -149,13 +146,33 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:judge-conflicts.create')
         ->name('judge-workspace.conflicts.store');
 
-    Route::get('exports/users.csv', [ExportCenterController::class, 'usersCsv'])
-        ->middleware(['permission:exports.view', 'permission:users.view'])
-        ->name('exports.users.csv');
-
-    Route::get('exports/summary/print', [ExportCenterController::class, 'printSummary'])
+    Route::get('exports/submissions.csv', [ExportCenterController::class, 'submissionsCsv'])
         ->middleware('permission:exports.view')
-        ->name('exports.summary.print');
+        ->name('exports.submissions.csv');
+
+    Route::get('exports/shortlist.csv', [ExportCenterController::class, 'shortlistCsv'])
+        ->middleware('permission:exports.view')
+        ->name('exports.shortlist.csv');
+
+    Route::get('exports/rankings.csv', [ExportCenterController::class, 'rankingsCsv'])
+        ->middleware('permission:exports.view')
+        ->name('exports.rankings.csv');
+
+    Route::get('exports/awards.csv', [ExportCenterController::class, 'awardsCsv'])
+        ->middleware('permission:exports.view')
+        ->name('exports.awards.csv');
+
+    Route::get('exports/archive.csv', [ExportCenterController::class, 'archiveCsv'])
+        ->middleware('permission:exports.view')
+        ->name('exports.archive.csv');
+
+    Route::get('governance', [GovernanceController::class, 'index'])
+        ->middleware('permission:governance.view')
+        ->name('governance.index');
+
+    Route::post('governance/reminders', [GovernanceController::class, 'sendReminders'])
+        ->middleware('permission:governance.update')
+        ->name('governance.reminders.send');
 
     Route::get('admin/users', [UserManagementController::class, 'index'])
         ->middleware('permission:users.view')

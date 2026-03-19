@@ -1390,67 +1390,67 @@ Add or expand:
 
 ## A. Reporting
 
-* [ ] Create reports dashboard
-* [ ] Total submissions by season
-* [ ] Submissions by stage
-* [ ] Submissions by industry
-* [ ] Reviewer completion rates
-* [ ] Judge completion rates
-* [ ] Score distribution reports
-* [ ] Shortlist funnel report
-* [ ] Winner summary report
+* [x] Create reports dashboard
+* [x] Total submissions by season
+* [x] Submissions by stage
+* [x] Submissions by industry
+* [x] Reviewer completion rates
+* [x] Judge completion rates
+* [x] Score distribution reports
+* [x] Shortlist funnel report
+* [x] Winner summary report
 
 ## B. Exports
 
-* [ ] Export submissions list to Excel/CSV
-* [ ] Export shortlisted projects
-* [ ] Export scoring summary
-* [ ] Export feedback summary
-* [ ] Export awards report
-* [ ] Export archive summary
+* [x] Export submissions list to Excel/CSV
+* [x] Export shortlisted projects
+* [x] Export scoring summary
+* [x] Export feedback summary
+* [x] Export awards report
+* [x] Export archive summary
 
 ## C. Notifications
 
-* [ ] Strengthen notification templates
-* [ ] Add notification log tracking
-* [ ] Add scheduled reminders for judges/reviewers
-* [ ] Add session reminder notices
-* [ ] Add result publication notifications
+* [x] Strengthen notification templates
+* [x] Add notification log tracking
+* [x] Add scheduled reminders for judges/reviewers
+* [x] Add session reminder notices
+* [x] Add result publication notifications
 
 ## D. Audit & Governance
 
-* [ ] Expand `audit_logs`
-* [ ] Log score reopen
-* [ ] Log status overrides
-* [ ] Log assignment changes
-* [ ] Log visibility changes
-* [ ] Log archive/publication actions
-* [ ] Build audit log viewer page
+* [x] Expand `audit_logs`
+* [x] Log score reopen
+* [x] Log status overrides
+* [x] Log assignment changes
+* [x] Log visibility changes
+* [x] Log archive/publication actions
+* [x] Build audit log viewer page
 
 ## E. Override Controls
 
-* [ ] Build reopen score flow
-* [ ] Build override decision flow
-* [ ] Require reason for override
-* [ ] Restrict override permissions to senior roles
-* [ ] Show override history per submission/session
+* [x] Build reopen score flow
+* [x] Build override decision flow
+* [x] Require reason for override
+* [x] Restrict override permissions to senior roles
+* [x] Show override history per submission/session
 
 ## F. Testing
 
-* [ ] exports produce correct data
-* [ ] audit entries are created for sensitive actions
-* [ ] notifications are logged
-* [ ] override permissions are enforced
+* [x] exports produce correct data
+* [x] audit entries are created for sensitive actions
+* [x] notifications are logged
+* [x] override permissions are enforced
 
 ---
 
 ## Phase 6 Done Definition
 
-* [ ] reports are useful
-* [ ] exports work
-* [ ] governance trail exists
-* [ ] override logic is controlled
-* [ ] tests pass
+* [x] reports are useful
+* [x] exports work
+* [x] governance trail exists
+* [x] override logic is controlled
+* [x] tests pass
 
 ---
 
@@ -1621,7 +1621,7 @@ Here is the simplest overall order:
 * [x] Phase 3 — Judge, Panel & Rubric Engine
 * [x] Phase 4 — Live Session & Real-Time Dashboard
 * [x] Phase 5 — Feedback, Ranking, Awards & Archive
-* [ ] Phase 6 — Reporting, Exports & Governance
+* [x] Phase 6 — Reporting, Exports & Governance
 * [ ] Phase 7 — AI Intelligence Layer
 * [ ] Phase 8 — Production Hardening & Deployment
 
@@ -1634,7 +1634,7 @@ Here is the simplest overall order:
 * [x] milestone 3: judge scoring engine complete
 * [x] milestone 4: live session operations complete
 * [x] milestone 5: archive and feedback complete
-* [ ] milestone 6: governance and reporting complete
+* [x] milestone 6: governance and reporting complete
 * [ ] milestone 7: AI advisory layer complete
 * [ ] milestone 8: production readiness complete
 

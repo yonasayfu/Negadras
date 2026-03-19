@@ -1,18 +1,33 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { FileOutput, Printer } from 'lucide-vue-next';
+import { Download, FileOutput } from 'lucide-vue-next';
 import PageContainer from '@/components/PageContainer.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { index as exportsIndex } from '@/routes/exports';
-import type { BreadcrumbItem, ExportResource } from '@/types';
+import type { BreadcrumbItem } from '@/types';
 
-type Props = {
-    resources: ExportResource[];
-};
-
-defineProps<Props>();
+defineProps<{
+    resources: Array<{
+        key: string;
+        title: string;
+        description: string;
+        href: string;
+        actionLabel: string;
+        format: string;
+    }>;
+    recentJobs: Array<{
+        id: number;
+        type: string;
+        statusLabel: string;
+        statusTone: string;
+        fileName: string | null;
+        rowCount: number | null;
+        requestedBy: string | null;
+        completedAt: string | null;
+    }>;
+}>();
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -29,19 +44,18 @@ const breadcrumbs: BreadcrumbItem[] = [
         <PageContainer>
             <PageHeader
                 title="Export center"
-                description="Reusable download and print actions live here so future modules can plug into one consistent pattern."
+                description="Operational exports now cover the main Negadras reporting surfaces and keep a recorded job trail for governance."
             />
 
-            <section class="grid gap-4 md:grid-cols-2">
+            <section class="grid gap-4 lg:grid-cols-2">
                 <article
                     v-for="resource in resources"
                     :key="resource.key"
-                    class="rounded-[1.5rem] border border-border/70 bg-card/85 p-6 shadow-sm backdrop-blur"
+                    class="rounded-2xl border border-border/70 bg-card/85 p-5"
                 >
                     <div class="flex items-center gap-3">
                         <div class="rounded-2xl bg-muted p-3">
-                            <FileOutput v-if="resource.format === 'CSV'" class="size-5" />
-                            <Printer v-else class="size-5" />
+                            <FileOutput class="size-5" />
                         </div>
                         <div>
                             <h2 class="text-lg font-semibold">{{ resource.title }}</h2>
@@ -53,14 +67,36 @@ const breadcrumbs: BreadcrumbItem[] = [
                         {{ resource.description }}
                     </p>
 
-                    <div class="mt-6">
+                    <div class="mt-5">
                         <Button as-child>
                             <Link :href="resource.href">
+                                <Download class="size-4" />
                                 {{ resource.actionLabel }}
                             </Link>
                         </Button>
                     </div>
                 </article>
+            </section>
+
+            <section class="rounded-2xl border border-border/70 bg-card/85 p-5">
+                <h2 class="text-lg font-semibold">Recent export jobs</h2>
+                <div class="mt-4 space-y-3">
+                    <div
+                        v-for="job in recentJobs"
+                        :key="job.id"
+                        class="flex flex-col gap-2 rounded-xl border border-border/60 px-4 py-3 md:flex-row md:items-center md:justify-between"
+                    >
+                        <div>
+                            <div class="font-medium">{{ job.type }}</div>
+                            <div class="text-sm text-muted-foreground">
+                                {{ job.fileName || 'No file name' }} · {{ job.requestedBy || 'System' }}
+                            </div>
+                        </div>
+                        <div class="text-sm text-muted-foreground">
+                            {{ job.rowCount || 0 }} rows · {{ job.completedAt || 'Pending' }}
+                        </div>
+                    </div>
+                </div>
             </section>
         </PageContainer>
     </AppLayout>

@@ -13,11 +13,12 @@ use App\Models\PanelSubmissionAssignment;
 use App\Models\ScoreLock;
 use App\Models\ScoreVisibilityEvent;
 use App\Models\Submission;
-use App\Notifications\SystemMessageNotification;
+use App\OverrideEventType;
 use App\PanelSubmissionAssignmentStatus;
 use App\ScoreVisibilityAction;
 use App\SubmissionStatus;
 use App\Support\ActivityLogger;
+use App\Support\GovernanceRecorder;
 use App\Support\ScoreEngine;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Validation\ValidationException;
@@ -200,6 +201,7 @@ class PanelScoringController extends Controller
     public function updateLock(
         UpdateScoreLockRequest $request,
         PanelSubmissionAssignment $panelSubmissionAssignment,
+        GovernanceRecorder $governance,
     ): RedirectResponse {
         $this->authorize('update', $panelSubmissionAssignment->panel);
 
@@ -235,12 +237,23 @@ class PanelScoringController extends Controller
             request: $request,
         );
 
+        $governance->record(
+            eventType: OverrideEventType::ScoreLockUpdated,
+            actor: $request->user(),
+            reason: $reason,
+            submission: $panelSubmissionAssignment->submission,
+            panelSubmissionAssignment: $panelSubmissionAssignment,
+            beforeState: ['intent' => $intent === 'lock' ? 'open' : 'locked'],
+            afterState: ['intent' => $intent],
+        );
+
         return back()->with('success', 'Score lock state updated successfully.');
     }
 
     public function storeVisibilityEvent(
         ToggleScoreVisibilityRequest $request,
         PanelSubmissionAssignment $panelSubmissionAssignment,
+        GovernanceRecorder $governance,
     ): RedirectResponse {
         $this->authorize('update', $panelSubmissionAssignment->panel);
 
@@ -260,12 +273,22 @@ class PanelScoringController extends Controller
             request: $request,
         );
 
+        $governance->record(
+            eventType: OverrideEventType::ScoreVisibilityUpdated,
+            actor: $request->user(),
+            reason: $request->validated('note'),
+            submission: $panelSubmissionAssignment->submission,
+            panelSubmissionAssignment: $panelSubmissionAssignment,
+            afterState: ['action' => $request->validated('action')],
+        );
+
         return back()->with('success', 'Score visibility event recorded successfully.');
     }
 
     public function updateConflict(
         UpdateConflictDeclarationRequest $request,
         ConflictOfInterestDeclaration $conflictDeclaration,
+        GovernanceRecorder $governance,
     ): RedirectResponse {
         $this->authorize('update', $conflictDeclaration);
 
@@ -281,6 +304,14 @@ class PanelScoringController extends Controller
             properties: [
                 'admin_note' => $request->validated('admin_note'),
             ],
+        );
+
+        $governance->record(
+            eventType: OverrideEventType::ConflictDecision,
+            actor: $request->user(),
+            reason: $request->validated('admin_note'),
+            submission: $conflictDeclaration->submission,
+            afterState: ['status' => $conflictDeclaration->status->value],
         );
 
         return back()->with('success', 'Conflict declaration updated successfully.');

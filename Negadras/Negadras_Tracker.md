@@ -190,6 +190,14 @@ Current progress:
 
 - completed
 
+Operational closeout completed after Phase N5:
+
+- reporting dashboard
+- export center
+- notification logging and reminder command
+- governance dashboard
+- override-event trail
+
 ### Phase N6: AI Advisory Layer
 
 - submission summarization

@@ -162,6 +162,11 @@ class Submission extends Model
         return $this->hasMany(ArchiveRecord::class)->latest('archived_at');
     }
 
+    public function overrideEvents(): HasMany
+    {
+        return $this->hasMany(OverrideEvent::class)->latest('created_at');
+    }
+
     public function scopeDraft(Builder $query): Builder
     {
         return $query->where('status', SubmissionStatus::Draft);

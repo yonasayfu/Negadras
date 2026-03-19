@@ -5737,3 +5737,210 @@ There should always be a controlled post-judging layer:
 5. public showcase
 
 That extra layer is what makes the system safe for a real competition program instead of only technically functional.
+
+---
+
+## Entry 016: Phase 6 - Reporting, Exports, Notifications, and Governance
+
+### What this phase needed to solve
+
+By the end of Phase 5, Negadras could make decisions, rank submissions, release feedback, and publish the archive. What it still lacked was operational control:
+
+- no Negadras-specific reports page
+- no export job trail
+- no notification delivery log
+- no single governance surface
+- no explicit override-event record for sensitive actions
+
+Phase 6 closed that gap.
+
+### Main backend files
+
+#### Reporting and export layer
+
+- [app/Http/Controllers/ReportsController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/ReportsController.php)
+- [app/Http/Controllers/ExportCenterController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/ExportCenterController.php)
+- [app/Models/ExportJob.php](/Users/yonassayfu/Herd/Negadras/app/Models/ExportJob.php)
+- [app/ExportJobStatus.php](/Users/yonassayfu/Herd/Negadras/app/ExportJobStatus.php)
+
+Important shift:
+
+```php
+ExportJob::query()->create([
+    'type' => $type,
+    'requested_by' => $request->user()->id,
+    'status' => ExportJobStatus::Completed,
+    'row_count' => $rowCount,
+    'completed_at' => now(),
+]);
+```
+
+Why this matters:
+
+- exports are now observable operations, not hidden downloads
+- governance can answer who exported what and when
+- later queued/async exports can grow from the same table without redesign
+
+The reports page was also rewritten away from the old starter-business `pages` report. It now summarizes actual Negadras workflow state:
+
+- submission funnel
+- review throughput
+- season and stage distribution
+- decision distribution
+- ranking/award/feedback completion
+
+#### Notification logging and reminders
+
+- [app/Support/NotificationDispatcher.php](/Users/yonassayfu/Herd/Negadras/app/Support/NotificationDispatcher.php)
+- [app/Models/NotificationLog.php](/Users/yonassayfu/Herd/Negadras/app/Models/NotificationLog.php)
+- [app/Support/ReviewerAssignmentOverdueService.php](/Users/yonassayfu/Herd/Negadras/app/Support/ReviewerAssignmentOverdueService.php)
+- [app/Console/Commands/NegadrasSendWorkflowReminders.php](/Users/yonassayfu/Herd/Negadras/app/Console/Commands/NegadrasSendWorkflowReminders.php)
+- [routes/console.php](/Users/yonassayfu/Herd/Negadras/routes/console.php)
+
+The core change was moving from direct `notify()` calls to a wrapper that also persists delivery metadata:
+
+```php
+$recipient->notificationLogs()->create([
+    'category' => $category,
+    'title' => $title,
+    'message' => $message,
+    'context_type' => $context?->getMorphClass(),
+    'context_id' => $context?->getKey(),
+    'sent_at' => now(),
+]);
+```
+
+Why this design is better:
+
+- database notifications remain the user-facing inbox
+- `notification_logs` becomes the governance trail
+- the workflow code no longer needs to duplicate notification-record creation
+
+This phase also added the new scheduled reminder command:
+
+```php
+Schedule::command('negadras:send-workflow-reminders')->dailyAt('08:00');
+```
+
+That keeps reminder behavior explicit and testable instead of scattering reminder logic across controllers.
+
+#### Governance and override trail
+
+- [app/Http/Controllers/GovernanceController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/GovernanceController.php)
+- [app/Models/OverrideEvent.php](/Users/yonassayfu/Herd/Negadras/app/Models/OverrideEvent.php)
+- [app/OverrideEventType.php](/Users/yonassayfu/Herd/Negadras/app/OverrideEventType.php)
+- [app/Support/GovernanceRecorder.php](/Users/yonassayfu/Herd/Negadras/app/Support/GovernanceRecorder.php)
+
+The override recorder was introduced so sensitive workflow actions create their own focused audit rows:
+
+```php
+$this->governance->record(
+    eventType: OverrideEventType::RankingOverride,
+    actor: $request->user(),
+    reason: $rankingSnapshot->override_reason_optional,
+    submission: $rankingSnapshot->submission,
+    beforeState: $beforeState,
+    afterState: [
+        'rank_position' => $rankingSnapshot->rank_position,
+        'override_reason_optional' => $rankingSnapshot->override_reason_optional,
+    ],
+);
+```
+
+Why not rely only on `activity_logs`?
+
+- `activity_logs` are broad and human-readable
+- `override_events` are narrow, structured, and governance-specific
+- later board or compliance reporting can query override history directly without parsing generic audit text
+
+The first set of override hooks now covers:
+
+- submission status transitions
+- reviewer reassignments
+- review reopen actions
+- ranking overrides
+- score-lock changes
+- score-visibility changes
+- conflict decisions
+
+### Existing workflow files enhanced in this phase
+
+- [app/Support/SubmissionStatusTransitionService.php](/Users/yonassayfu/Herd/Negadras/app/Support/SubmissionStatusTransitionService.php)
+- [app/Support/ReviewerAssignmentService.php](/Users/yonassayfu/Herd/Negadras/app/Support/ReviewerAssignmentService.php)
+- [app/Http/Controllers/Admin/RankingManagementController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/RankingManagementController.php)
+- [app/Http/Controllers/Admin/PanelScoringController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/PanelScoringController.php)
+- [app/Http/Controllers/Admin/FeedbackPacketManagementController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/FeedbackPacketManagementController.php)
+
+The real architectural improvement here is not the new page. It is the extraction of shared operational concerns:
+
+- notification dispatch
+- reminder scheduling
+- governance event recording
+
+That keeps the domain controllers from turning into long chains of side effects.
+
+### Main frontend files
+
+- [resources/js/pages/reports/Index.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/reports/Index.vue)
+- [resources/js/pages/exports/Index.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/exports/Index.vue)
+- [resources/js/pages/governance/Index.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/governance/Index.vue)
+- [resources/js/navigation/app.ts](/Users/yonassayfu/Herd/Negadras/resources/js/navigation/app.ts)
+
+Frontend result:
+
+- reports are now Negadras-specific
+- exports show recent export jobs, not just buttons
+- governance brings override events, notification delivery, export jobs, and recent audit activity into one surface
+
+This is important for a business app because operations teams need visibility, not only feature CRUD.
+
+### Route and permission changes
+
+- [routes/web.php](/Users/yonassayfu/Herd/Negadras/routes/web.php)
+- [database/seeders/RolePermissionSeeder.php](/Users/yonassayfu/Herd/Negadras/database/seeders/RolePermissionSeeder.php)
+
+New permission surface:
+
+```php
+'governance.view',
+'governance.update',
+```
+
+Why this split matters:
+
+- some operational users should see governance state
+- fewer users should trigger reminder or control actions
+- viewing governance and mutating governance are different trust levels
+
+### Tests added
+
+- [tests/Feature/ReportsGovernancePhaseTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/ReportsGovernancePhaseTest.php)
+- [tests/Feature/ExportCenterPhaseTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/ExportCenterPhaseTest.php)
+- [tests/Feature/NotificationGovernancePhaseTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/NotificationGovernancePhaseTest.php)
+- [tests/Feature/OverrideControlPhaseTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/OverrideControlPhaseTest.php)
+
+What they prove:
+
+- managers can open the new reporting and governance surfaces
+- export routes generate files and persist export jobs
+- reminder workflows persist notification logs
+- ranking overrides create governance events
+
+### Laravel takeaways from this phase
+
+1. A notification system and a notification-audit system are related, but they are not the same table.
+2. If an operation matters to governance, give it a structured model instead of only a text log line.
+3. Exports in business systems should be treated like stateful operations, not throwaway responses.
+4. Wrapping notification delivery in a service is more maintainable than sprinkling `notify()` everywhere.
+5. Reporting pages should reflect real domain flow, not recycled starter-kit metrics.
+
+### Practical Negadras result
+
+At the end of this phase:
+
+- Negadras has a domain-specific reporting dashboard
+- core CSV exports are available and auditable
+- workflow reminders are schedulable
+- notification delivery is logged
+- override-sensitive actions create a governance trail
+- managers have a dedicated governance page for operational oversight

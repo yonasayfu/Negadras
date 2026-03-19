@@ -9,8 +9,9 @@ use App\Http\Requests\Admin\StorePresenterFeedbackPacketRequest;
 use App\Http\Requests\Admin\UpdatePresenterFeedbackPacketRequest;
 use App\Models\PresenterFeedbackPacket;
 use App\Models\Submission;
-use App\Notifications\SystemMessageNotification;
+use App\Models\User;
 use App\Support\FeedbackPacketBuilder;
+use App\Support\NotificationDispatcher;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -65,6 +66,7 @@ class FeedbackPacketManagementController extends Controller
     public function store(
         StorePresenterFeedbackPacketRequest $request,
         FeedbackPacketBuilder $builder,
+        NotificationDispatcher $notifications,
     ): RedirectResponse {
         $this->authorize('create', PresenterFeedbackPacket::class);
 
@@ -80,7 +82,7 @@ class FeedbackPacketManagementController extends Controller
         ], fn ($value) => $value !== null))->save();
 
         if ($request->boolean('send_now')) {
-            $this->deliverPacket($packet, true);
+            $this->deliverPacket($packet, true, $notifications, $request->user());
         }
 
         return back()->with('success', 'Feedback packet saved successfully.');
@@ -104,29 +106,38 @@ class FeedbackPacketManagementController extends Controller
     public function send(
         SendPresenterFeedbackPacketRequest $request,
         PresenterFeedbackPacket $presenterFeedbackPacket,
+        NotificationDispatcher $notifications,
     ): RedirectResponse {
         $this->authorize('update', $presenterFeedbackPacket);
 
-        $this->deliverPacket($presenterFeedbackPacket, $request->boolean('send_notification', true));
+        $this->deliverPacket($presenterFeedbackPacket, $request->boolean('send_notification', true), $notifications, $request->user());
 
         return back()->with('success', 'Feedback packet is now visible to the presenter.');
     }
 
-    private function deliverPacket(PresenterFeedbackPacket $packet, bool $sendNotification): void
-    {
+    private function deliverPacket(
+        PresenterFeedbackPacket $packet,
+        bool $sendNotification,
+        NotificationDispatcher $notifications,
+        ?User $sender = null,
+    ): void {
         $packet->update([
             'visibility_status' => FeedbackVisibilityStatus::PresenterVisible,
             'sent_at_optional' => now(),
         ]);
 
         if ($sendNotification && $packet->submission?->applicant?->user !== null) {
-            $packet->submission->applicant->user->notify(new SystemMessageNotification(
+            $notifications->sendToUser(
+                recipient: $packet->submission->applicant->user,
+                category: 'feedback-packet',
                 title: 'Feedback packet available',
                 message: "A new feedback packet is available for {$packet->submission->title}.",
                 actionUrl: route('feedback.show', $packet),
                 actionLabel: 'Open feedback',
                 level: 'success',
-            ));
+                sender: $sender,
+                context: $packet,
+            );
         }
     }
 }

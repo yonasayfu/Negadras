@@ -7,12 +7,17 @@ use App\Models\ScreeningReview;
 use App\Models\Submission;
 use App\Models\SubmissionStatusHistory;
 use App\Models\User;
+use App\OverrideEventType;
 use App\ReviewerAssignmentStatus;
 use App\SubmissionStatus;
 use Illuminate\Validation\ValidationException;
 
 class SubmissionStatusTransitionService
 {
+    public function __construct(
+        private readonly GovernanceRecorder $governance,
+    ) {}
+
     /**
      * @var array<string, list<string>>
      */
@@ -137,13 +142,26 @@ class SubmissionStatusTransitionService
                 ]);
         }
 
-        return $submission->statusHistory()->create([
+        $history = $submission->statusHistory()->create([
             'from_status' => $fromStatus,
             'to_status' => $toStatus,
             'changed_by' => $actor?->id,
             'reason' => filled($reason) ? $reason : null,
             'created_at' => now(),
         ]);
+
+        if ($fromStatus !== $toStatus) {
+            $this->governance->record(
+                eventType: OverrideEventType::SubmissionStatusTransition,
+                actor: $actor,
+                reason: $reason,
+                submission: $submission,
+                beforeState: ['status' => $fromStatus->value],
+                afterState: ['status' => $toStatus->value],
+            );
+        }
+
+        return $history;
     }
 
     public function recordInitialStatus(

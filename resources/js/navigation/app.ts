@@ -24,6 +24,7 @@ import {
     ScrollText,
     Users,
     Workflow,
+    ShieldAlert,
 } from 'lucide-vue-next';
 import { index as activityLogsIndex } from '@/routes/activity-logs';
 import { index as adminSubmissionsIndex } from '@/routes/admin-submissions';
@@ -35,6 +36,7 @@ import { index as awardsIndex } from '@/routes/awards';
 import { index as exportsIndex } from '@/routes/exports';
 import { index as feedbackIndex } from '@/routes/feedback';
 import { index as feedbackPacketsIndex } from '@/routes/feedback-packets';
+import { index as governanceIndex } from '@/routes/governance';
 import { index as handbookIndex } from '@/routes/handbook';
 import { index as industriesIndex } from '@/routes/industries';
 import { index as judgeLiveIndex } from '@/routes/judge-live';
@@ -100,6 +102,12 @@ export const appNavigation: NavGroup[] = [
                 href: reportsIndex(),
                 icon: FileSpreadsheet,
                 permission: 'reports.view',
+            },
+            {
+                title: 'Governance',
+                href: governanceIndex(),
+                icon: ShieldAlert,
+                permission: 'governance.view',
             },
         ],
     },

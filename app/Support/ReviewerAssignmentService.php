@@ -8,7 +8,7 @@ use App\Models\ScreeningReview;
 use App\Models\Submission;
 use App\Models\TechnicalReview;
 use App\Models\User;
-use App\Notifications\SystemMessageNotification;
+use App\OverrideEventType;
 use App\ReviewAssignmentType;
 use App\ReviewerAssignmentStatus;
 use App\SubmissionStatus;
@@ -16,6 +16,11 @@ use Illuminate\Validation\ValidationException;
 
 class ReviewerAssignmentService
 {
+    public function __construct(
+        private readonly NotificationDispatcher $notifications,
+        private readonly GovernanceRecorder $governance,
+    ) {}
+
     public function assign(
         Submission $submission,
         Reviewer $reviewer,
@@ -59,14 +64,20 @@ class ReviewerAssignmentService
             'status' => ReviewerAssignmentStatus::Assigned,
         ]);
 
-        $reviewer->user?->notify(new SystemMessageNotification(
-            title: "New {$assignmentType->label()} assignment",
-            message: "You were assigned to review {$submission->title}.",
-            actionUrl: $assignmentType === ReviewAssignmentType::Screening
-                ? route('reviewer-queue.show', $assignment)
-                : route('technical-reviewer-queue.show', $assignment),
-            actionLabel: 'Open assignment',
-        ));
+        if ($reviewer->user !== null) {
+            $this->notifications->sendToUser(
+                recipient: $reviewer->user,
+                category: 'reviewer-assignment',
+                title: "New {$assignmentType->label()} assignment",
+                message: "You were assigned to review {$submission->title}.",
+                actionUrl: $assignmentType === ReviewAssignmentType::Screening
+                    ? route('reviewer-queue.show', $assignment)
+                    : route('technical-reviewer-queue.show', $assignment),
+                actionLabel: 'Open assignment',
+                sender: $actor,
+                context: $assignment,
+            );
+        }
 
         ActivityLogger::record(
             actor: $actor,
@@ -155,6 +166,22 @@ class ReviewerAssignmentService
             ],
         );
 
+        $this->governance->record(
+            eventType: OverrideEventType::ReviewerReassigned,
+            actor: $actor,
+            reason: $reason,
+            submission: $submission,
+            reviewerAssignment: $newAssignment,
+            beforeState: [
+                'from_assignment_id' => $assignment->id,
+                'from_reviewer_id' => $assignment->reviewer_id,
+            ],
+            afterState: [
+                'to_assignment_id' => $newAssignment->id,
+                'to_reviewer_id' => $reviewer->id,
+            ],
+        );
+
         return $newAssignment;
     }
 
@@ -227,16 +254,16 @@ class ReviewerAssignmentService
             ],
         );
 
-        User::role(['Admin', 'Manager'])
-            ->get()
-            ->each(function (User $user) use ($assignment): void {
-                $user->notify(new SystemMessageNotification(
-                    title: 'Screening review submitted',
-                    message: "A screening review was submitted for {$assignment->submission?->title}.",
-                    actionUrl: route('screening-queue.show', $assignment->submission_id),
-                    actionLabel: 'Open screening queue',
-                ));
-            });
+        $this->notifications->send(
+            recipients: User::role(['Admin', 'Manager'])->get(),
+            category: 'screening-review',
+            title: 'Screening review submitted',
+            message: "A screening review was submitted for {$assignment->submission?->title}.",
+            actionUrl: route('screening-queue.show', $assignment->submission_id),
+            actionLabel: 'Open screening queue',
+            sender: $actor,
+            context: $review,
+        );
 
         return $review;
     }
@@ -274,15 +301,31 @@ class ReviewerAssignmentService
             ],
         );
 
-        $assignment->reviewer?->user?->notify(new SystemMessageNotification(
-            title: "{$assignment->assignment_type->label()} reopened",
-            message: "Your {$assignment->assignment_type->label()} for {$assignment->submission?->title} was reopened for further work.",
-            actionUrl: $assignment->isScreening()
-                ? route('reviewer-queue.show', $assignment)
-                : route('technical-reviewer-queue.show', $assignment),
-            actionLabel: 'Open assignment',
-            level: 'warning',
-        ));
+        if ($assignment->reviewer?->user !== null) {
+            $this->notifications->sendToUser(
+                recipient: $assignment->reviewer->user,
+                category: 'review-reopened',
+                title: "{$assignment->assignment_type->label()} reopened",
+                message: "Your {$assignment->assignment_type->label()} for {$assignment->submission?->title} was reopened for further work.",
+                actionUrl: $assignment->isScreening()
+                    ? route('reviewer-queue.show', $assignment)
+                    : route('technical-reviewer-queue.show', $assignment),
+                actionLabel: 'Open assignment',
+                level: 'warning',
+                sender: $actor,
+                context: $assignment,
+            );
+        }
+
+        $this->governance->record(
+            eventType: OverrideEventType::ReviewReopened,
+            actor: $actor,
+            reason: $reason,
+            submission: $assignment->submission,
+            reviewerAssignment: $assignment,
+            beforeState: ['status' => ReviewerAssignmentStatus::Submitted->value],
+            afterState: ['status' => ReviewerAssignmentStatus::InProgress->value],
+        );
     }
 
     public function saveDraftTechnicalReview(
@@ -337,16 +380,16 @@ class ReviewerAssignmentService
             ],
         );
 
-        User::role(['Admin', 'Manager'])
-            ->get()
-            ->each(function (User $user) use ($assignment): void {
-                $user->notify(new SystemMessageNotification(
-                    title: 'Technical review submitted',
-                    message: "A technical review was submitted for {$assignment->submission?->title}.",
-                    actionUrl: route('technical-queue.show', $assignment->submission_id),
-                    actionLabel: 'Open technical queue',
-                ));
-            });
+        $this->notifications->send(
+            recipients: User::role(['Admin', 'Manager'])->get(),
+            category: 'technical-review',
+            title: 'Technical review submitted',
+            message: "A technical review was submitted for {$assignment->submission?->title}.",
+            actionUrl: route('technical-queue.show', $assignment->submission_id),
+            actionLabel: 'Open technical queue',
+            sender: $actor,
+            context: $review,
+        );
 
         return $review;
     }

@@ -9,3 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('negadras:notify-overdue-reviews')->hourly();
+Schedule::command('negadras:send-workflow-reminders')->dailyAt('08:00');

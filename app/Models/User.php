@@ -80,4 +80,9 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->hasMany(LiveStatusSnapshot::class, 'updated_by');
     }
+
+    public function notificationLogs(): HasMany
+    {
+        return $this->hasMany(NotificationLog::class, 'recipient_user_id');
+    }
 }

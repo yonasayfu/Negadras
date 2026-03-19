@@ -4,11 +4,14 @@ namespace App\Support;
 
 use App\Models\ReviewerAssignment;
 use App\Models\User;
-use App\Notifications\SystemMessageNotification;
 use App\ReviewerAssignmentStatus;
 
 class ReviewerAssignmentOverdueService
 {
+    public function __construct(
+        private readonly NotificationDispatcher $notifications,
+    ) {}
+
     public function expireOverdueAssignments(): int
     {
         $expired = 0;
@@ -29,29 +32,33 @@ class ReviewerAssignmentOverdueService
 
                 $expired++;
 
-                $assignment->reviewer?->user?->notify(new SystemMessageNotification(
-                    title: 'Review assignment overdue',
-                    message: "Your {$assignment->assignment_type->label()} assignment for {$assignment->submission?->title} is overdue.",
-                    actionUrl: $assignment->isTechnical()
-                        ? route('technical-reviewer-queue.show', $assignment)
-                        : route('reviewer-queue.show', $assignment),
-                    actionLabel: 'Open assignment',
-                    level: 'warning',
-                ));
+                if ($assignment->reviewer?->user !== null) {
+                    $this->notifications->sendToUser(
+                        recipient: $assignment->reviewer->user,
+                        category: 'reviewer-assignment-overdue',
+                        title: 'Review assignment overdue',
+                        message: "Your {$assignment->assignment_type->label()} assignment for {$assignment->submission?->title} is overdue.",
+                        actionUrl: $assignment->isTechnical()
+                            ? route('technical-reviewer-queue.show', $assignment)
+                            : route('reviewer-queue.show', $assignment),
+                        actionLabel: 'Open assignment',
+                        level: 'warning',
+                        context: $assignment,
+                    );
+                }
 
-                User::role(['Admin', 'Manager'])
-                    ->get()
-                    ->each(function (User $user) use ($assignment): void {
-                        $user->notify(new SystemMessageNotification(
-                            title: 'Reviewer assignment overdue',
-                            message: "An overdue {$assignment->assignment_type->label()} assignment exists for {$assignment->submission?->title}.",
-                            actionUrl: $assignment->isTechnical()
-                                ? route('technical-queue.show', $assignment->submission_id)
-                                : route('screening-queue.show', $assignment->submission_id),
-                            actionLabel: 'Open workflow',
-                            level: 'warning',
-                        ));
-                    });
+                $this->notifications->send(
+                    recipients: User::role(['Admin', 'Manager'])->get(),
+                    category: 'reviewer-assignment-overdue',
+                    title: 'Reviewer assignment overdue',
+                    message: "An overdue {$assignment->assignment_type->label()} assignment exists for {$assignment->submission?->title}.",
+                    actionUrl: $assignment->isTechnical()
+                        ? route('technical-queue.show', $assignment->submission_id)
+                        : route('screening-queue.show', $assignment->submission_id),
+                    actionLabel: 'Open workflow',
+                    level: 'warning',
+                    context: $assignment,
+                );
 
                 ActivityLogger::record(
                     actor: $assignment->reviewer?->user,

@@ -600,21 +600,21 @@ Add these entities:
 
 ### A1. Reviewer Profile
 
-* [ ] Create `reviewers` table or reviewer profile extension
-* [ ] Add fields: `user_id`, `professional_title`, `organization`, `specialization`, `bio`, `is_active`
-* [ ] Create Reviewer model
-* [ ] Link reviewer to user
-* [ ] Create reviewer list page for admin
-* [ ] Create reviewer detail page
-* [ ] Add reviewer activation/deactivation
+* [x] Create `reviewers` table or reviewer profile extension
+* [x] Add fields: `user_id`, `professional_title`, `organization`, `specialization`, `bio`, `is_active`
+* [x] Create Reviewer model
+* [x] Link reviewer to user
+* [x] Create reviewer list page for admin
+* [x] Create reviewer detail page
+* [x] Add reviewer activation/deactivation
 * [ ] Add reviewer specialization filters
 
 ### A2. Reviewer Permissions
 
-* [ ] Define reviewer permissions
-* [ ] Restrict reviewer visibility to assigned submissions only
-* [ ] Prevent reviewer from accessing judge-only interfaces
-* [ ] Add reviewer policy rules
+* [x] Define reviewer permissions
+* [x] Restrict reviewer visibility to assigned submissions only
+* [x] Prevent reviewer from accessing judge-only interfaces
+* [x] Add reviewer policy rules
 
 ---
 
@@ -622,22 +622,22 @@ Add these entities:
 
 ### B1. Assignment Table
 
-* [ ] Create `reviewer_assignments` migration
-* [ ] Add fields: `submission_id`, `reviewer_id`, `stage_id`, `assigned_at`, `due_at`, `status`
-* [ ] Create ReviewerAssignment model
-* [ ] Add assignment statuses: `assigned`, `in_progress`, `submitted`, `expired`, `cancelled`
-* [ ] Create assignment service
-* [ ] Create assignment UI for admin/manager
+* [x] Create `reviewer_assignments` migration
+* [x] Add fields: `submission_id`, `reviewer_id`, `stage_id`, `assigned_at`, `due_at`, `status`
+* [x] Create ReviewerAssignment model
+* [x] Add assignment statuses: `assigned`, `in_progress`, `submitted`, `expired`, `cancelled`
+* [x] Create assignment service
+* [x] Create assignment UI for admin/manager
 * [ ] Add bulk assignment support
-* [ ] Add due date support
-* [ ] Add reviewer workload count display
+* [x] Add due date support
+* [x] Add reviewer workload count display
 
 ### B2. Assignment Rules
 
-* [ ] Prevent duplicate active reviewer assignment for same submission/reviewer/stage
+* [x] Prevent duplicate active reviewer assignment for same submission/reviewer/stage
 * [ ] Allow reassignment by manager/admin
-* [ ] Log assignment changes
-* [ ] Notify reviewer on assignment
+* [x] Log assignment changes
+* [x] Notify reviewer on assignment
 
 ---
 
@@ -645,26 +645,26 @@ Add these entities:
 
 ### C1. Screening Review Table
 
-* [ ] Create `screening_reviews` migration
-* [ ] Add fields: `submission_id`, `reviewer_assignment_id`, `eligibility_status`, `recommendation`, `score_optional`, `notes`, `submitted_at`
-* [ ] Create ScreeningReview model
-* [ ] Create screening review form
+* [x] Create `screening_reviews` migration
+* [x] Add fields: `submission_id`, `reviewer_assignment_id`, `eligibility_status`, `recommendation`, `score_optional`, `notes`, `submitted_at`
+* [x] Create ScreeningReview model
+* [x] Create screening review form
 * [ ] Add structured eligibility checklist
-* [ ] Add recommendation choices:
+* [x] Add recommendation choices:
 
-  * [ ] pass
-  * [ ] reject
-  * [ ] return_for_revision
-  * [ ] escalate
-* [ ] Add private reviewer note section
-* [ ] Add submit review action
+  * [x] pass
+  * [x] reject
+  * [x] return_for_revision
+  * [x] escalate
+* [x] Add private reviewer note section
+* [x] Add submit review action
 
 ### C2. Screening Form Logic
 
 * [ ] Prevent final submission without required checklist items
-* [ ] Allow save as draft
-* [ ] Mark reviewer assignment `in_progress` on first edit
-* [ ] Mark reviewer assignment `submitted` on final submit
+* [x] Allow save as draft
+* [x] Mark reviewer assignment `in_progress` on first edit
+* [x] Mark reviewer assignment `submitted` on final submit
 * [ ] Lock submitted review unless manager reopens
 
 ---
@@ -720,22 +720,22 @@ Add these entities:
 
 ### F1. Reviewer Dashboard
 
-* [ ] Create reviewer dashboard
-* [ ] Show assigned submissions
-* [ ] Show due reviews
-* [ ] Show completed reviews
-* [ ] Show overdue assignments
-* [ ] Show quick filters by stage and status
+* [x] Create reviewer dashboard
+* [x] Show assigned submissions
+* [x] Show due reviews
+* [x] Show completed reviews
+* [x] Show overdue assignments
+* [x] Show quick filters by stage and status
 
 ### F2. Reviewer Submission Detail View
 
-* [ ] Show presenter/applicant information
-* [ ] Show organization/team information
-* [ ] Show submission summary
-* [ ] Show uploaded files
-* [ ] Show version information
+* [x] Show presenter/applicant information
+* [x] Show organization/team information
+* [x] Show submission summary
+* [x] Show uploaded files
+* [x] Show version information
 * [ ] Show prior intake notes if allowed
-* [ ] Show review form entry point
+* [x] Show review form entry point
 
 ---
 
@@ -763,7 +763,7 @@ Add these entities:
 
 ## H. Notifications
 
-* [ ] Notify reviewer on assignment
+* [x] Notify reviewer on assignment
 * [ ] Notify manager on submitted review
 * [ ] Notify presenter when revision requested
 * [ ] Notify presenter on rejection or shortlist result
@@ -773,26 +773,26 @@ Add these entities:
 
 ## I. Testing
 
-* [ ] Reviewer can only see assigned submissions
-* [ ] Reviewer can submit screening review
-* [ ] Reviewer can save draft review
+* [x] Reviewer can only see assigned submissions
+* [x] Reviewer can submit screening review
+* [x] Reviewer can save draft review
 * [ ] Manager can shortlist based on reviews
 * [ ] Decision updates submission status
-* [ ] Duplicate assignment prevention works
+* [x] Duplicate assignment prevention works
 * [ ] Reviewer overdue state behaves correctly
 
 ---
 
 ## Phase 2 Done Definition
 
-* [ ] reviewers exist as real users with workflow
-* [ ] submissions can be assigned for screening
-* [ ] reviews can be submitted and tracked
+* [x] reviewers exist as real users with workflow
+* [x] submissions can be assigned for screening
+* [x] reviews can be submitted and tracked
 * [ ] manager can make shortlist decisions
 * [ ] revision/rejection/shortlist outcomes are functional
-* [ ] reviewer dashboard works
-* [ ] review queue works
-* [ ] tests pass
+* [x] reviewer dashboard works
+* [x] review queue works
+* [x] tests pass
 
 ---
 

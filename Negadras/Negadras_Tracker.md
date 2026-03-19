@@ -104,10 +104,15 @@ Current progress:
 - submission status tracking foundation completed
 - intake management foundation completed
 - presenter portal UX refinement and dashboard operations completed
+- reviewer foundation completed
+- reviewer assignment foundation completed
+- screening review draft and submit flow completed
+- reviewer queue completed
 - seasons, stages, industries, applicants, social links, organizations, team members, submission intake, submission versioning, private submission file handling, status history tracking, intake operations, presenter counters, open-call visibility, and dashboard metrics are now in place
+- reviewer profiles, reviewer permissions, reviewer-only visibility rules, reviewer assignments, reviewer notifications, reviewer workload visibility, screening recommendations, screening draft save, final screening submission, and reviewer work queue are now in place
 - checklist estimate:
-  - Phase N1 detail backlog is roughly 79% complete
-  - full multi-phase roadmap is roughly 21% complete
+  - Phase N2 detail backlog is roughly 24% complete
+  - full multi-phase roadmap is roughly 27% complete
 
 ### Phase N2: Operational Workflow
 

@@ -5,11 +5,15 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\TransitionSubmissionStatusRequest;
 use App\Models\Industry;
+use App\Models\Reviewer;
+use App\Models\ReviewerAssignment;
 use App\Models\Season;
 use App\Models\Stage;
 use App\Models\Submission;
 use App\Models\SubmissionFile;
 use App\Models\SubmissionStatusHistory;
+use App\Models\User;
+use App\ReviewerAssignmentStatus;
 use App\SubmissionStatus;
 use App\Support\ActivityLogger;
 use App\Support\SubmissionFileRegistry;
@@ -129,6 +133,9 @@ class SubmissionManagementController extends Controller
             'applicant:id,full_name,email,phone',
             'organization:id,display_name,contact_email',
             'organization.teamMembers:id,organization_id,is_primary_contact',
+            'reviewerAssignments.reviewer.user:id,name,email',
+            'reviewerAssignments.stage:id,name',
+            'reviewerAssignments.screeningReview:id,reviewer_assignment_id,recommendation,submitted_at',
             'currentVersion:id,submission_id,version_no,created_by,change_note,is_locked,created_at',
             'versions.creator:id,name',
             'files.version:id,version_no',
@@ -181,10 +188,50 @@ class SubmissionManagementController extends Controller
                     ->map(fn (SubmissionStatusHistory $entry): array => $this->statusTimelineEntry($entry))
                     ->values()
                     ->all(),
+                'reviewerAssignments' => $submission->reviewerAssignments
+                    ->map(fn (ReviewerAssignment $assignment): array => [
+                        'id' => $assignment->id,
+                        'reviewerName' => $assignment->reviewer?->user?->name,
+                        'reviewerEmail' => $assignment->reviewer?->user?->email,
+                        'stageName' => $assignment->stage?->name,
+                        'status' => $assignment->status->value,
+                        'statusLabel' => $assignment->status->label(),
+                        'statusTone' => $assignment->status->tone(),
+                        'assignedAt' => $assignment->assigned_at?->toDateTimeString(),
+                        'dueAt' => $assignment->due_at?->toDateTimeString(),
+                        'recommendationLabel' => $assignment->screeningReview?->recommendation?->label(),
+                    ])
+                    ->values()
+                    ->all(),
             ],
             'submissionFileDefinitions' => $this->submissionFileDefinitions(),
             'availableTransitions' => app(SubmissionStatusTransitionService::class)->availableStaffTransitions($submission),
             'canTransitionStatus' => request()->user()?->can('update', $submission) ?? false,
+            'reviewerOptions' => Reviewer::query()
+                ->with('user:id,name,email')
+                ->withCount(['assignments as activeAssignmentsCount' => function ($query): void {
+                    $query->whereIn('status', [
+                        ReviewerAssignmentStatus::Assigned,
+                        ReviewerAssignmentStatus::InProgress,
+                    ]);
+                }])
+                ->where('is_active', true)
+                ->orderBy(
+                    User::query()
+                        ->select('name')
+                        ->whereColumn('users.id', 'reviewers.user_id')
+                        ->limit(1),
+                )
+                ->get()
+                ->map(fn (Reviewer $reviewer): array => [
+                    'value' => (string) $reviewer->id,
+                    'label' => sprintf(
+                        '%s (%s active)',
+                        $reviewer->user?->name ?? 'Reviewer',
+                        $reviewer->activeAssignmentsCount,
+                    ),
+                ])
+                ->all(),
         ]);
     }
 

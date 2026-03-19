@@ -169,6 +169,46 @@ export type ManagedSubmission = {
     currentVersionFiles?: ManagedSubmissionFile[];
     versionHistory?: SubmissionVersionEntry[];
     statusTimeline?: SubmissionStatusTimelineEntry[];
+    reviewerAssignments?: ManagedReviewerAssignment[];
+};
+
+export type ManagedReviewer = {
+    id: number;
+    userId: number;
+    name: string | null;
+    email: string | null;
+    professionalTitle: string | null;
+    organization: string | null;
+    specialization: string | null;
+    bio: string | null;
+    isActive: boolean;
+    activeAssignmentsCount: number;
+};
+
+export type ManagedReviewerAssignment = {
+    id: number;
+    submissionId?: number;
+    title?: string | null;
+    seasonName?: string | null;
+    stageName?: string | null;
+    industryName?: string | null;
+    applicantName?: string | null;
+    reviewerName?: string | null;
+    reviewerEmail?: string | null;
+    status: string;
+    statusLabel: string;
+    statusTone: string;
+    dueAt: string | null;
+    assignedAt: string | null;
+    isOverdue?: boolean;
+    recommendationLabel?: string | null;
+    review?: {
+        eligibilityStatus: string | null;
+        recommendation: string | null;
+        scoreOptional: number | null;
+        notes: string | null;
+        submittedAt: string | null;
+    } | null;
 };
 
 export type SubmissionIntakeChecklist = {

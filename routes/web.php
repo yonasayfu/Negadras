@@ -8,6 +8,8 @@ use App\Http\Controllers\Admin\NoteManagementController;
 use App\Http\Controllers\Admin\OrganizationManagementController;
 use App\Http\Controllers\Admin\PageImportController;
 use App\Http\Controllers\Admin\PageManagementController;
+use App\Http\Controllers\Admin\ReviewerAssignmentManagementController;
+use App\Http\Controllers\Admin\ReviewerManagementController;
 use App\Http\Controllers\Admin\RoleManagementController;
 use App\Http\Controllers\Admin\SeasonManagementController;
 use App\Http\Controllers\Admin\SettingsManagementController;
@@ -21,6 +23,8 @@ use App\Http\Controllers\HandbookController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PublicPageController;
 use App\Http\Controllers\ReportsController;
+use App\Http\Controllers\ReviewerQueueController;
+use App\Http\Controllers\ScreeningReviewController;
 use App\Http\Controllers\SubmissionController;
 use App\Http\Controllers\SubmissionFileController;
 use Illuminate\Support\Facades\Route;
@@ -74,6 +78,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('reports/pages.csv', [ReportsController::class, 'pagesCsv'])
         ->middleware('permission:reports.view')
         ->name('reports.pages.csv');
+
+    Route::get('reviewer/queue', [ReviewerQueueController::class, 'index'])
+        ->middleware('permission:reviewer-queue.view')
+        ->name('reviewer-queue.index');
+
+    Route::get('reviewer/assignments/{reviewerAssignment}', [ReviewerQueueController::class, 'show'])
+        ->middleware('permission:reviewer-queue.view')
+        ->name('reviewer-queue.show');
+
+    Route::post('reviewer/assignments/{reviewerAssignment}/screening-review', [ScreeningReviewController::class, 'store'])
+        ->middleware('permission:screening-reviews.create')
+        ->name('screening-reviews.store');
 
     Route::get('exports/users.csv', [ExportCenterController::class, 'usersCsv'])
         ->middleware(['permission:exports.view', 'permission:users.view'])
@@ -134,6 +150,34 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('admin/submissions/{submission}/status', [SubmissionManagementController::class, 'transition'])
         ->middleware('permission:submissions.update')
         ->name('admin-submissions.transition');
+
+    Route::post('admin/submissions/{submission}/reviewer-assignments', [ReviewerAssignmentManagementController::class, 'store'])
+        ->middleware('permission:reviewer-assignments.create')
+        ->name('admin-submissions.reviewer-assignments.store');
+
+    Route::delete('admin/submissions/{submission}/reviewer-assignments/{reviewerAssignment}', [ReviewerAssignmentManagementController::class, 'destroy'])
+        ->middleware('permission:reviewer-assignments.update')
+        ->name('admin-submissions.reviewer-assignments.destroy');
+
+    Route::get('admin/reviewers', [ReviewerManagementController::class, 'index'])
+        ->middleware('permission:reviewers.view')
+        ->name('reviewers.index');
+
+    Route::get('admin/reviewers/create', [ReviewerManagementController::class, 'create'])
+        ->middleware('permission:reviewers.create')
+        ->name('reviewers.create');
+
+    Route::post('admin/reviewers', [ReviewerManagementController::class, 'store'])
+        ->middleware('permission:reviewers.create')
+        ->name('reviewers.store');
+
+    Route::get('admin/reviewers/{reviewer}/edit', [ReviewerManagementController::class, 'edit'])
+        ->middleware('permission:reviewers.view')
+        ->name('reviewers.edit');
+
+    Route::put('admin/reviewers/{reviewer}', [ReviewerManagementController::class, 'update'])
+        ->middleware('permission:reviewers.update')
+        ->name('reviewers.update');
 
     Route::get('admin/seasons', [SeasonManagementController::class, 'index'])
         ->middleware('permission:seasons.view')

@@ -1,22 +1,27 @@
 <script setup lang="ts">
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { ArrowLeft } from 'lucide-vue-next';
+import ConfirmActionDialog from '@/components/admin/ConfirmActionDialog.vue';
 import StatusBadge from '@/components/admin/StatusBadge.vue';
 import InputError from '@/components/InputError.vue';
 import SubmissionFilesPanel from '@/components/submissions/SubmissionFilesPanel.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { destroy as destroyReviewerAssignment, store as storeReviewerAssignment } from '@/routes/admin-submissions/reviewer-assignments';
 import { index as adminSubmissionsIndex, transition as transitionSubmissionStatus } from '@/routes/admin-submissions';
-import type { BreadcrumbItem, ManagedSubmission, SubmissionFileDefinition, SubmissionTransitionOption } from '@/types';
+import type { BreadcrumbItem, ManagedReviewerAssignment, ManagedSubmission, SelectOption, SubmissionFileDefinition, SubmissionTransitionOption } from '@/types';
 
 type Props = {
     submission: ManagedSubmission;
     submissionFileDefinitions?: SubmissionFileDefinition[];
     availableTransitions: SubmissionTransitionOption[];
     canTransitionStatus: boolean;
+    reviewerOptions: SelectOption[];
 };
 
 const props = defineProps<Props>();
@@ -30,12 +35,35 @@ const selectedTransitionRequiresReason = (): boolean => {
     return props.availableTransitions.find((option) => option.value === transitionForm.status)?.requiresReason ?? false;
 };
 
+const assignmentForm = useForm({
+    reviewer_id: props.reviewerOptions[0]?.value ?? '',
+    due_at: '',
+});
+
 const submitStatusTransition = (): void => {
     transitionForm.post(transitionSubmissionStatus(props.submission.id).url, {
         preserveScroll: true,
         onSuccess: () => {
             transitionForm.reset('reason');
         },
+    });
+};
+
+const submitReviewerAssignment = (): void => {
+    assignmentForm.post(storeReviewerAssignment(props.submission.id).url, {
+        preserveScroll: true,
+        onSuccess: () => {
+            assignmentForm.reset('due_at');
+        },
+    });
+};
+
+const cancelReviewerAssignment = (assignment: ManagedReviewerAssignment): void => {
+    router.delete(destroyReviewerAssignment({
+        submission: props.submission.id,
+        reviewerAssignment: assignment.id,
+    }).url, {
+        preserveScroll: true,
     });
 };
 
@@ -200,6 +228,94 @@ const breadcrumbs: BreadcrumbItem[] = [
                                 Update status
                             </Button>
                         </form>
+                    </div>
+
+                    <div class="rounded-[1.5rem] border border-border/70 bg-card/85 p-5 shadow-sm">
+                        <h2 class="text-base font-semibold">Reviewer assignments</h2>
+                        <p class="mt-2 text-sm text-muted-foreground">
+                            Assign eligible submissions to active reviewers and track whether their screening review is still pending or already submitted.
+                        </p>
+
+                        <form
+                            v-if="reviewerOptions.length > 0"
+                            class="mt-4 grid gap-4"
+                            @submit.prevent="submitReviewerAssignment"
+                        >
+                            <div class="grid gap-2">
+                                <Label for="reviewer_id">Reviewer</Label>
+                                <Select v-model="assignmentForm.reviewer_id">
+                                    <SelectTrigger id="reviewer_id">
+                                        <SelectValue placeholder="Select reviewer" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem v-for="option in reviewerOptions" :key="option.value" :value="String(option.value)">
+                                            {{ option.label }}
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <InputError :message="assignmentForm.errors.reviewer_id" />
+                            </div>
+
+                            <div class="grid gap-2">
+                                <Label for="due_at">Due at</Label>
+                                <Input id="due_at" v-model="assignmentForm.due_at" type="datetime-local" />
+                                <InputError :message="assignmentForm.errors.due_at" />
+                            </div>
+
+                            <Button type="submit" :disabled="assignmentForm.processing || !assignmentForm.reviewer_id">
+                                Assign reviewer
+                            </Button>
+                        </form>
+
+                        <div
+                            v-else
+                            class="mt-4 rounded-xl border border-dashed border-border/70 bg-background/60 p-4 text-sm text-muted-foreground"
+                        >
+                            No active reviewer profiles are available yet.
+                        </div>
+
+                        <div class="mt-5 grid gap-3">
+                            <article
+                                v-for="assignment in submission.reviewerAssignments ?? []"
+                                :key="assignment.id"
+                                class="rounded-xl border border-border/70 bg-background/60 p-4"
+                            >
+                                <div class="flex items-start justify-between gap-4">
+                                    <div>
+                                        <div class="font-medium">{{ assignment.reviewerName || 'Unknown reviewer' }}</div>
+                                        <div class="mt-1 text-sm text-muted-foreground">{{ assignment.reviewerEmail || 'No email' }}</div>
+                                    </div>
+                                    <StatusBadge :label="assignment.statusLabel" :tone="assignment.statusTone" />
+                                </div>
+
+                                <div class="mt-3 grid gap-1 text-sm text-muted-foreground">
+                                    <div>Stage: {{ assignment.stageName || 'N/A' }}</div>
+                                    <div>Assigned: {{ assignment.assignedAt ? new Date(assignment.assignedAt).toLocaleString() : 'N/A' }}</div>
+                                    <div>Due: {{ assignment.dueAt ? new Date(assignment.dueAt).toLocaleString() : 'No due date' }}</div>
+                                    <div v-if="assignment.recommendationLabel">Recommendation: {{ assignment.recommendationLabel }}</div>
+                                </div>
+
+                                <div class="mt-4 flex justify-end">
+                                    <ConfirmActionDialog
+                                        title="Cancel reviewer assignment"
+                                        description="Cancel this assignment so a manager can reassign the submission if needed."
+                                        confirm-label="Cancel assignment"
+                                        @confirm="cancelReviewerAssignment(assignment)"
+                                    >
+                                        <template #trigger>
+                                            <Button variant="outline">Cancel assignment</Button>
+                                        </template>
+                                    </ConfirmActionDialog>
+                                </div>
+                            </article>
+
+                            <div
+                                v-if="(submission.reviewerAssignments?.length ?? 0) === 0"
+                                class="rounded-xl border border-dashed border-border/70 bg-background/60 p-4 text-sm text-muted-foreground"
+                            >
+                                No reviewer assignments exist yet for this submission.
+                            </div>
+                        </div>
                     </div>
 
                     <div class="rounded-[1.5rem] border border-border/70 bg-card/85 p-5 shadow-sm">

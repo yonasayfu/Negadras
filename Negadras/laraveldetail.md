@@ -3236,3 +3236,623 @@ This is the correct shape right now:
 - judging, assignments, live session tooling, public showcase, AI advisory, and hardening are still ahead
 
 Those belong to later operational and review phases.
+
+## Entry 009: Phase N2 Screening and Reviewer Foundation
+
+### Scope
+
+This phase started the real post-intake workflow.
+
+The goal was not to build the full judging engine yet. The goal was to create the first controlled review layer between intake staff and later judging:
+
+- reviewer profiles
+- reviewer role access
+- reviewer assignment workflow
+- reviewer-facing queue
+- screening review draft and submission flow
+
+This is the phase where Negadras starts behaving like a review platform instead of only an intake portal.
+
+### Core design decision
+
+The important architecture decision in this phase was:
+
+- reviewers are real users with a reviewer profile
+- assignments are the access boundary
+- screening reviews belong to assignments, not directly to users alone
+
+That means:
+
+- the reviewer sees only what is assigned
+- the assignment carries the stage and due date context
+- the review can be audited against a specific assignment record
+
+This is the right structure because later:
+
+- reassignment
+- multiple review layers
+- technical review
+- shortlist decisions
+
+all need assignment-aware history.
+
+### Files and why they changed
+
+#### [app/Models/Reviewer.php](/Users/yonassayfu/Herd/Negadras/app/Models/Reviewer.php)
+
+Before:
+
+```diff
+- empty artisan model stub
+```
+
+After:
+
+```diff
++ fillable reviewer profile fields
++ casts for is_active
++ belongsTo user()
++ hasMany assignments()
+```
+
+Why:
+
+- Negadras needs reviewer-specific metadata that should not live directly on `users`
+- this keeps the user account generic while letting the reviewer workflow grow independently
+
+The important relation:
+
+```diff
++ public function user(): BelongsTo
++ public function assignments(): HasMany
+```
+
+This is what makes role membership and reviewer profile distinct but connected.
+
+#### [app/Models/ReviewerAssignment.php](/Users/yonassayfu/Herd/Negadras/app/Models/ReviewerAssignment.php)
+
+This model is the real center of the phase.
+
+Before:
+
+```diff
+- no assignment model existed
+```
+
+After:
+
+```diff
++ submission_id
++ reviewer_id
++ stage_id
++ assigned_at
++ due_at
++ status
++ screeningReview()
++ isOwnedBy(User $user)
+```
+
+Why:
+
+- direct reviewer-to-submission access is too weak
+- the assignment is where operational context lives
+
+The ownership helper is the practical enforcement point:
+
+```diff
++ return $this->reviewer?->user_id === $user->id;
+```
+
+That method is reused by policies so the reviewer queue is not protected only by frontend filtering.
+
+#### [app/Models/ScreeningReview.php](/Users/yonassayfu/Herd/Negadras/app/Models/ScreeningReview.php)
+
+What changed:
+
+```diff
++ submission_id
++ reviewer_assignment_id
++ eligibility_status
++ recommendation
++ score_optional
++ notes
++ submitted_at
+```
+
+Why:
+
+- Negadras needed draftable reviewer work before full judging
+- this model captures the first decision layer without forcing the later rubric engine too early
+
+The key rule:
+
+```diff
++ one screening review per reviewer assignment
+```
+
+This keeps the flow simple for Phase 2 and prevents reviewer ambiguity.
+
+#### [database/migrations/2026_03_19_072945_create_reviewers_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_072945_create_reviewers_table.php)
+
+Why this migration matters:
+
+- it formalizes reviewer identity as a first-class workflow actor
+- `user_id` is unique, which means one user has at most one reviewer profile
+
+Important fields:
+
+```diff
++ professional_title
++ organization
++ specialization
++ bio
++ is_active
+```
+
+These are not cosmetic. They prepare:
+
+- reviewer selection
+- future specialization filtering
+- workload balancing
+
+#### [database/migrations/2026_03_19_072945_create_reviewer_assignments_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_072945_create_reviewer_assignments_table.php)
+
+This migration created the workflow backbone.
+
+Important columns:
+
+```diff
++ submission_id
++ reviewer_id
++ stage_id
++ assigned_at
++ due_at
++ status
+```
+
+Why `stage_id` is important:
+
+- the same submission can move through multiple stages
+- later review decisions must still know which stage the assignment belonged to
+
+#### [database/migrations/2026_03_19_072945_create_screening_reviews_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_072945_create_screening_reviews_table.php)
+
+Important rule recorded in schema:
+
+```diff
++ unique reviewer_assignment_id
+```
+
+Why:
+
+- one active screening decision record should map to one assignment
+- this avoids duplicate draft/final review rows fighting each other
+
+#### [app/ReviewerAssignmentStatus.php](/Users/yonassayfu/Herd/Negadras/app/ReviewerAssignmentStatus.php)
+
+This moved from placeholder to real enum.
+
+After:
+
+```diff
++ Assigned
++ InProgress
++ Submitted
++ Expired
++ Cancelled
++ label()
++ tone()
++ isActive()
+```
+
+Why:
+
+- reviewer queue and assignment management both need one shared status language
+- the UI and policies should not invent separate string literals
+
+#### [app/ScreeningRecommendation.php](/Users/yonassayfu/Herd/Negadras/app/ScreeningRecommendation.php)
+
+After:
+
+```diff
++ Pass
++ Reject
++ ReturnForRevision
++ Escalate
+```
+
+Why:
+
+- the tracker required explicit recommendation paths
+- those values need to be stable because later manager decision logic will depend on them
+
+#### [app/ScreeningEligibilityStatus.php](/Users/yonassayfu/Herd/Negadras/app/ScreeningEligibilityStatus.php)
+
+After:
+
+```diff
++ Eligible
++ Ineligible
++ NeedsClarification
+```
+
+Why:
+
+- recommendation and eligibility are not the same thing
+- the project needs both dimensions:
+  - "Is this entry eligible?"
+  - "What should happen next?"
+
+That separation is important for later shortlisting logic.
+
+#### [app/Support/ReviewerAssignmentService.php](/Users/yonassayfu/Herd/Negadras/app/Support/ReviewerAssignmentService.php)
+
+This is the most important backend file in the phase.
+
+Before:
+
+```diff
+- empty class
+```
+
+After:
+
+```diff
++ assign(...)
++ markInProgress(...)
++ complete(...)
++ cancel(...)
++ saveDraftReview(...)
++ submitReview(...)
+```
+
+Why this service exists:
+
+- assignment rules and review state changes should not be scattered across controllers
+- the service centralizes workflow side effects:
+  - validation
+  - assignment status changes
+  - activity logging
+  - notifications
+
+Example of the key guard:
+
+```diff
++ if ($submission->status !== SubmissionStatus::Eligible) {
++     throw ValidationException::withMessages([
++         'submission' => 'Only eligible submissions can be assigned to reviewers.',
++     ]);
++ }
+```
+
+Why:
+
+- reviewer work should begin only after intake has marked the submission eligible
+- this enforces the phase boundary between intake and screening
+
+Duplicate protection also lives here:
+
+```diff
++ ->whereIn('status', [
++     ReviewerAssignmentStatus::Assigned,
++     ReviewerAssignmentStatus::InProgress,
++ ])
+```
+
+Why:
+
+- the same reviewer should not receive the same active assignment twice for the same submission/stage
+
+#### [app/Http/Controllers/Admin/ReviewerManagementController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/ReviewerManagementController.php)
+
+This file created the admin-facing reviewer module.
+
+It now handles:
+
+- reviewer index
+- create reviewer profile
+- edit reviewer profile
+- available user selection
+- reviewer summary payloads
+
+Important behavior:
+
+```diff
++ selected user gets Reviewer role
++ reviewer profile is created separately
+```
+
+Why:
+
+- a reviewer must be both:
+  - a system user with permissions
+  - a workflow actor with profile data
+
+#### [app/Http/Controllers/Admin/ReviewerAssignmentManagementController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/ReviewerAssignmentManagementController.php)
+
+This controller intentionally stays thin.
+
+It does two things:
+
+- assign reviewer to submission
+- cancel reviewer assignment
+
+Why:
+
+- the real workflow logic belongs in `ReviewerAssignmentService`
+- the controller should remain a transport layer
+
+That separation matters because reassign/bulk-assign later can reuse the same service rules.
+
+#### [app/Http/Controllers/ReviewerQueueController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/ReviewerQueueController.php)
+
+This file is the reviewer-facing workspace.
+
+What it now does:
+
+```diff
++ index() shows only assignments owned by the signed-in reviewer
++ filters by search, status, and stage
++ show() loads full submission review context
+```
+
+Important gate:
+
+```diff
++ abort_if($reviewer === null || ! $reviewer->is_active, 403);
+```
+
+Why:
+
+- having the Reviewer role alone is not enough
+- the user also needs an active reviewer profile
+
+The detail page payload includes:
+
+- submission narrative
+- current version files
+- version history
+- status timeline
+- review draft values
+- recommendation and eligibility options
+
+That payload is large on purpose. Reviewers need context without opening three other screens.
+
+#### [app/Http/Controllers/ScreeningReviewController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/ScreeningReviewController.php)
+
+This file handles the reviewer save/submit boundary.
+
+Important split:
+
+```diff
++ intent = draft
++ intent = submit
+```
+
+Why:
+
+- the system must support partial work
+- final submission needs a stricter boundary than draft save
+
+Also important:
+
+```diff
++ already submitted reviews are locked
+```
+
+Why:
+
+- reviewer decisions should not silently change after submission
+- reopening should be an explicit later manager workflow, not implicit editing
+
+#### [app/Policies/ReviewerPolicy.php](/Users/yonassayfu/Herd/Negadras/app/Policies/ReviewerPolicy.php)
+#### [app/Policies/ReviewerAssignmentPolicy.php](/Users/yonassayfu/Herd/Negadras/app/Policies/ScreeningReviewPolicy.php)
+
+These three policies are what make the reviewer workflow safe.
+
+What changed:
+
+```diff
++ admin permissions protect reviewer management
++ reviewer-owned assignments can be viewed by the reviewer
++ reviewer-owned reviews can be updated only before submission
+```
+
+Why:
+
+- Negadras now has assignment-based access rules, not only role-based pages
+- this is a step toward the stricter access model that judging will need later
+
+#### [database/seeders/RolePermissionSeeder.php](/Users/yonassayfu/Herd/Negadras/database/seeders/RolePermissionSeeder.php)
+
+This file changed in an important business way.
+
+New permissions added:
+
+```diff
++ reviewers.view
++ reviewers.create
++ reviewers.update
++ reviewer-assignments.view
++ reviewer-assignments.create
++ reviewer-assignments.update
++ reviewer-queue.view
++ screening-reviews.view
++ screening-reviews.create
++ screening-reviews.update
+```
+
+New role added:
+
+```diff
++ Reviewer
+```
+
+Why:
+
+- reviewer work is now an explicit bounded workflow
+- it should not be faked through Manager or Secretary access
+
+#### [routes/web.php](/Users/yonassayfu/Herd/Negadras/routes/web.php)
+
+This phase added the full route layer for reviewer operations.
+
+New route groups now cover:
+
+- reviewer queue index
+- reviewer assignment detail
+- screening review save/submit
+- admin reviewer CRUD
+- admin reviewer assignment create/cancel
+
+Why:
+
+- the project now needed both reviewer-facing and admin-facing endpoints
+- these route names also power the Wayfinder frontend contract
+
+#### [resources/js/pages/admin/Reviewers/Index.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/Reviewers/Index.vue)
+
+This page is the admin reviewer registry.
+
+It shows:
+
+- reviewer identity
+- active/inactive status
+- reviewer profile context
+- current active assignment count
+
+Why:
+
+- managers need quick operational visibility before assigning work
+- workload count is the first simple balancing signal
+
+#### [resources/js/pages/admin/Reviewers/Create.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/Reviewers/Create.vue)
+#### [resources/js/pages/admin/Reviewers/Edit.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/Reviewers/Edit.vue)
+
+These pages create and maintain reviewer profiles.
+
+Why:
+
+- reviewer management had to become a first-class admin task before assignment workflows could be trusted
+
+#### [resources/js/pages/reviewers/Queue.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/reviewers/Queue.vue)
+
+This page is effectively the reviewer dashboard for Phase 2.
+
+It now shows:
+
+- assigned submissions only
+- current assignment status
+- overdue indicator
+- stage filter
+- status filter
+- search by title or presenter
+
+Why:
+
+- reviewers need a focused work queue, not the general admin submissions list
+
+#### [resources/js/pages/reviewers/Review.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/reviewers/Review.vue)
+
+This page is the screening work surface.
+
+It combines:
+
+- submission context
+- file visibility
+- status history
+- version history
+- draft review fields
+- final submission action
+
+Why:
+
+- asking the reviewer to jump between multiple pages would slow down the workflow and increase mistakes
+
+#### [resources/js/pages/admin/Submissions/Show.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/Submissions/Show.vue)
+
+This file was extended rather than replaced.
+
+New parts:
+
+```diff
++ reviewer assignment form
++ reviewer options
++ assigned reviewer cards
++ cancel assignment action
+```
+
+Why:
+
+- assignment belongs operationally near the submission detail
+- intake staff and managers already work here
+
+That is the correct local integration point for now.
+
+#### [tests/Feature/ReviewerAssignmentManagementTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/ReviewerAssignmentManagementTest.php)
+
+This test proves:
+
+- admin can create reviewer profile
+- eligible submissions can be assigned
+- duplicate active assignments are blocked
+
+Why:
+
+- assignment duplication is one of the easiest workflow bugs to ship if it is not explicitly tested
+
+#### [tests/Feature/ReviewerQueueTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/ReviewerQueueTest.php)
+
+This test proves:
+
+- reviewer sees only their own assignments
+- reviewer cannot open another reviewer’s assignment detail
+
+Why:
+
+- reviewer access is assignment-scoped, not broad role access
+- this is a core confidentiality rule
+
+#### [tests/Feature/ScreeningReviewFlowTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/ScreeningReviewFlowTest.php)
+
+This test proves:
+
+- reviewer can save screening review as draft
+- reviewer can later submit it
+- submitted review becomes locked
+
+Why:
+
+- this phase introduced the draft/final review boundary
+- without a test, it would be easy to accidentally allow silent post-submit edits
+
+### Laravel takeaways from this phase
+
+1. Role-based access alone is too weak for reviewer workflows. Assignment-based policy checks are the real boundary.
+2. Workflow services should own state changes, duplicate prevention, logging, and notifications together.
+3. Review forms usually need a draft/save boundary before they need a full rubric engine.
+4. A reviewer queue is more useful when it carries full context filters and overdue visibility from the first version.
+5. If a review becomes auditable later, it should already be modeled as assignment-linked from the beginning.
+
+### Practical Negadras result
+
+At the end of this phase:
+
+- reviewers exist as real users with reviewer profiles
+- reviewer-specific permissions are live
+- eligible submissions can be assigned to reviewers
+- duplicate active reviewer assignments are blocked
+- reviewers receive assignment notifications
+- reviewers get a dedicated queue with filters and overdue visibility
+- reviewers can save draft screening reviews and submit final recommendations
+- submitted screening reviews are locked
+
+What is intentionally still not done:
+
+- bulk assignment
+- reassignment workflow
+- structured eligibility checklist
+- technical review layer
+- manager screening queue
+- shortlist decision engine
+- reopen submitted screening review flow

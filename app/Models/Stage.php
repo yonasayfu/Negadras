@@ -53,4 +53,9 @@ class Stage extends Model
     {
         return $this->hasMany(Submission::class, 'current_stage_id')->latest();
     }
+
+    public function reviewerAssignments(): HasMany
+    {
+        return $this->hasMany(ReviewerAssignment::class)->latest('assigned_at');
+    }
 }

@@ -11,6 +11,7 @@ import {
     FolderOpen,
     IdCard,
     LayoutGrid,
+    ListChecks,
     Settings2,
     Shield,
     ScrollText,
@@ -30,6 +31,8 @@ import { index as notificationsIndex } from '@/routes/notifications';
 import { index as organizationsIndex } from '@/routes/organizations';
 import { index as pagesIndex } from '@/routes/pages';
 import { index as reportsIndex } from '@/routes/reports';
+import { index as reviewerQueueIndex } from '@/routes/reviewer-queue';
+import { index as reviewersIndex } from '@/routes/reviewers';
 import { index as rolesIndex } from '@/routes/roles';
 import { index as seasonsIndex } from '@/routes/seasons';
 import { index as stagesIndex } from '@/routes/stages';
@@ -99,6 +102,12 @@ export const appNavigation: NavGroup[] = [
                 icon: FolderKanban,
             },
             {
+                title: 'Reviewer queue',
+                href: reviewerQueueIndex(),
+                icon: ListChecks,
+                permission: 'reviewer-queue.view',
+            },
+            {
                 title: 'Seasons',
                 href: seasonsIndex(),
                 icon: CalendarRange,
@@ -156,6 +165,12 @@ export const appNavigation: NavGroup[] = [
                 href: usersIndex(),
                 icon: Users,
                 permission: 'users.view',
+            },
+            {
+                title: 'Reviewers',
+                href: reviewersIndex(),
+                icon: ListChecks,
+                permission: 'reviewers.view',
             },
             {
                 title: 'Roles',

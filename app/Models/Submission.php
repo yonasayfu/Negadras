@@ -92,6 +92,16 @@ class Submission extends Model
         return $this->hasMany(SubmissionStatusHistory::class)->latest('created_at');
     }
 
+    public function reviewerAssignments(): HasMany
+    {
+        return $this->hasMany(ReviewerAssignment::class)->latest('assigned_at');
+    }
+
+    public function screeningReviews(): HasMany
+    {
+        return $this->hasMany(ScreeningReview::class)->latest('submitted_at');
+    }
+
     public function scopeDraft(Builder $query): Builder
     {
         return $query->where('status', SubmissionStatus::Draft);

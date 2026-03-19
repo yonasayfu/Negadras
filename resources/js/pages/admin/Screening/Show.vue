@@ -12,7 +12,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { index as screeningQueueIndex, decision as decideScreening } from '@/routes/screening-queue';
-import { update as updateReviewerAssignment } from '@/routes/reviewer-assignments';
+import { bulkStore as bulkStoreReviewerAssignments } from '@/routes/admin-submissions/reviewer-assignments';
+import { transition as transitionReviewerAssignment, update as updateReviewerAssignment } from '@/routes/reviewer-assignments';
 import type { BreadcrumbItem, ManagedSubmission, SelectOption, SubmissionTransitionOption } from '@/types';
 
 type Props = {
@@ -50,6 +51,21 @@ const reassignmentForms = Object.fromEntries(
     ]),
 );
 
+const reopenForms = Object.fromEntries(
+    (props.submission.reviewerAssignments ?? []).map((assignment) => [
+        assignment.id,
+        useForm({
+            intent: 'reopen',
+            reason: '',
+        }),
+    ]),
+);
+
+const bulkAssignmentForm = useForm({
+    reviewer_ids: [] as string[],
+    due_at: '',
+});
+
 const submitDecision = (): void => {
     decisionForm.post(decideScreening(props.submission.id).url, {
         preserveScroll: true,
@@ -61,6 +77,21 @@ const submitReassignment = (assignmentId: number): void => {
         ...data,
         due_at: data.due_at === '' ? null : data.due_at,
     })).put(updateReviewerAssignment(assignmentId).url, {
+        preserveScroll: true,
+    });
+};
+
+const submitBulkAssignment = (): void => {
+    bulkAssignmentForm.transform((data) => ({
+        ...data,
+        due_at: data.due_at === '' ? null : data.due_at,
+    })).post(bulkStoreReviewerAssignments(props.submission.id).url, {
+        preserveScroll: true,
+    });
+};
+
+const submitReopen = (assignmentId: number): void => {
+    reopenForms[assignmentId].post(transitionReviewerAssignment(assignmentId).url, {
         preserveScroll: true,
     });
 };
@@ -107,6 +138,37 @@ const submitReassignment = (assignmentId: number): void => {
 
                     <div class="rounded-[1.5rem] border border-border/70 bg-card/85 p-5 shadow-sm">
                         <h2 class="text-base font-semibold">Reviewer assignments and submitted reviews</h2>
+                        <form class="mt-4 grid gap-4 rounded-xl border border-border/70 bg-card/80 p-4" @submit.prevent="submitBulkAssignment">
+                            <div class="text-sm font-medium">Bulk assign reviewers</div>
+                            <div class="grid gap-2">
+                                <Label>Reviewers</Label>
+                                <div class="grid gap-2 md:grid-cols-2">
+                                    <label
+                                        v-for="option in reviewerOptions"
+                                        :key="option.value"
+                                        class="flex items-center gap-3 rounded-lg border border-border/70 px-3 py-2 text-sm"
+                                    >
+                                        <input v-model="bulkAssignmentForm.reviewer_ids" :value="String(option.value)" type="checkbox" class="size-4 rounded border-border" />
+                                        <span>{{ option.label }}</span>
+                                    </label>
+                                </div>
+                                <InputError :message="bulkAssignmentForm.errors.reviewer_ids" />
+                            </div>
+
+                            <div class="grid gap-2 md:max-w-sm">
+                                <Label for="bulk_due_at">Shared due date</Label>
+                                <Input id="bulk_due_at" v-model="bulkAssignmentForm.due_at" type="datetime-local" />
+                                <InputError :message="bulkAssignmentForm.errors.due_at" />
+                            </div>
+
+                            <div class="flex justify-end">
+                                <Button type="submit" variant="outline" :disabled="bulkAssignmentForm.processing || bulkAssignmentForm.reviewer_ids.length === 0">
+                                    <Save class="size-4" />
+                                    Bulk assign
+                                </Button>
+                            </div>
+                        </form>
+
                         <div class="mt-4 grid gap-4">
                             <article
                                 v-for="assignment in submission.reviewerAssignments ?? []"
@@ -179,6 +241,27 @@ const submitReassignment = (assignmentId: number): void => {
                                         <Button type="submit" variant="outline" :disabled="reassignmentForms[assignment.id].processing">
                                             <Save class="size-4" />
                                             Reassign reviewer
+                                        </Button>
+                                    </div>
+                                </form>
+
+                                <form v-if="assignment.review?.submittedAt" class="mt-4 grid gap-3 rounded-xl border border-border/70 bg-card/80 p-4" @submit.prevent="submitReopen(assignment.id)">
+                                    <div class="text-sm font-medium">Reopen submitted review</div>
+                                    <div class="grid gap-2">
+                                        <Label :for="`reopen-reason-${assignment.id}`">Reason</Label>
+                                        <textarea
+                                            :id="`reopen-reason-${assignment.id}`"
+                                            v-model="reopenForms[assignment.id].reason"
+                                            rows="3"
+                                            class="flex min-h-24 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs"
+                                            placeholder="Explain why the reviewer must continue or revise this review."
+                                        />
+                                        <InputError :message="reopenForms[assignment.id].errors.reason" />
+                                    </div>
+
+                                    <div class="flex justify-end">
+                                        <Button type="submit" variant="outline" :disabled="reopenForms[assignment.id].processing">
+                                            Reopen review
                                         </Button>
                                     </div>
                                 </form>
@@ -269,6 +352,23 @@ const submitReassignment = (assignmentId: number): void => {
                                 </template>
                             </ConfirmActionDialog>
                         </form>
+                    </div>
+
+                    <div v-if="submission.reviewDecisions?.length" class="rounded-[1.5rem] border border-border/70 bg-card/85 p-5 shadow-sm">
+                        <h2 class="text-base font-semibold">Decision history</h2>
+                        <div class="mt-4 grid gap-3">
+                            <article
+                                v-for="entry in submission.reviewDecisions"
+                                :key="entry.id"
+                                class="rounded-xl border border-border/70 bg-background/60 p-4"
+                            >
+                                <div class="font-medium">{{ entry.decisionLabel }}</div>
+                                <p class="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{{ entry.decisionReason || 'No reason recorded.' }}</p>
+                                <div class="mt-2 text-xs text-muted-foreground">
+                                    {{ entry.decidedBy || 'System' }} · {{ entry.decidedAt ? new Date(entry.decidedAt).toLocaleString() : 'Unknown time' }}
+                                </div>
+                            </article>
+                        </div>
                     </div>
                 </aside>
             </div>

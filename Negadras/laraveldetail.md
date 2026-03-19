@@ -4543,3 +4543,283 @@ What is still intentionally not done in this phase:
 - technical review reopen flow
 - reviewer reminder scheduling
 - live judging and panel scoring
+
+## Entry 012: Phase N2 Operational Workflow Closeout
+
+### Scope
+
+This batch closed the rest of the practical Phase 2 workflow:
+
+- bulk reviewer assignment
+- structured screening checklist enforcement
+- manager reopen flow for submitted reviews
+- persisted review decisions
+- shortlist records and approval
+- shortlist export placeholder
+- overdue review expiry and notification handling
+
+The goal was to stop treating shortlist and decision logic as controller side-effects and make them first-class workflow records.
+
+### Files and why they changed
+
+#### [app/Models/ReviewDecision.php](/Users/yonassayfu/Herd/Negadras/app/Models/ReviewDecision.php)
+#### [app/Models/ShortlistRecord.php](/Users/yonassayfu/Herd/Negadras/app/Models/ShortlistRecord.php)
+
+Before:
+
+```diff
+- no persisted review decision table
+- no persisted shortlist table
+```
+
+After:
+
+```diff
++ ReviewDecision belongs to submission, stage, decider
++ ShortlistRecord belongs to submission, stage, creator, approver
++ both models cast their enums and timestamps explicitly
+```
+
+Why:
+
+- Phase 2 decisions must be auditable
+- shortlist membership must survive beyond one status change
+- approval and export state belong to a shortlist record, not to `submissions`
+
+#### [database/migrations/2026_03_19_103234_create_review_decisions_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_103234_create_review_decisions_table.php)
+#### [database/migrations/2026_03_19_103234_create_shortlist_records_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_103234_create_shortlist_records_table.php)
+#### [database/migrations/2026_03_19_103411_add_eligibility_checklist_to_screening_reviews_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_103411_add_eligibility_checklist_to_screening_reviews_table.php)
+#### [database/migrations/2026_03_19_103411_add_shortlist_approval_fields_to_shortlist_records_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_103411_add_shortlist_approval_fields_to_shortlist_records_table.php)
+
+Key additions:
+
+```diff
++ review_decisions.decision_type
++ review_decisions.decision_reason
++ shortlist_records.rank_order_optional
++ shortlist_records.approval_status
++ shortlist_records.approved_by
++ shortlist_records.exported_at
++ screening_reviews.eligibility_checklist
+```
+
+Why:
+
+- the checklist now has storage, not just frontend state
+- shortlist approval is explicit instead of implied
+- export placeholder work can now mark what has already been exported
+
+#### [app/Support/ReviewDecisionService.php](/Users/yonassayfu/Herd/Negadras/app/Support/ReviewDecisionService.php)
+
+This is the core decision boundary:
+
+```diff
++ record()
++ fromSubmissionStatus()
++ toSubmissionStatus()
++ allowsStatusTransition()
+```
+
+Why:
+
+- screening and technical decisions now share one decision writer
+- status changes are now mapped from a decision instead of being handwritten in controllers
+- shortlist record creation happens centrally when the decision is `Shortlisted`
+
+#### [app/Support/ReviewerAssignmentService.php](/Users/yonassayfu/Herd/Negadras/app/Support/ReviewerAssignmentService.php)
+
+Important changes:
+
+```diff
++ saveDraftReview() now stores eligibility_checklist
++ bulkAssign()
++ reopenReview() now notifies the reviewer
+```
+
+Why:
+
+- submit validation would be incomplete if draft persistence ignored checklist data
+- bulk assignment belongs in the service because duplicate prevention still matters there
+- reopen is a workflow event, not just a status flip
+
+#### [app/Http/Requests/StoreScreeningReviewRequest.php](/Users/yonassayfu/Herd/Negadras/app/Http/Requests/StoreScreeningReviewRequest.php)
+
+The important change is the post-validation rule:
+
+```diff
++ withValidator()
++ if submit and any checklist item is false => add error
+```
+
+Why:
+
+- required checklist logic is business validation, not UI convenience
+- draft save stays permissive
+- final submit becomes the actual control point
+
+#### [app/Http/Controllers/Admin/ReviewerAssignmentManagementController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/ReviewerAssignmentManagementController.php)
+
+New actions:
+
+```diff
++ storeBulk()
++ storeTechnicalBulk()
++ transition()
+```
+
+Why:
+
+- managers needed a real bulk path for workload distribution
+- reopen needed a formal route and request boundary
+- this keeps reviewer-assignment mutations grouped in one controller instead of scattering them across queue pages
+
+#### [app/Http/Controllers/Admin/ScreeningQueueController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/ScreeningQueueController.php)
+
+Key change:
+
+```diff
++ screening decisions now also write ReviewDecision rows
++ screening detail now exposes decision history
+```
+
+Why:
+
+- status history answers "what happened to the submission"
+- review decisions answer "what managerial decision was actually made"
+- those are related, but not the same record
+
+#### [app/Http/Controllers/Admin/TechnicalQueueController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/TechnicalQueueController.php)
+
+This file became the real manager technical decision surface:
+
+```diff
++ decide()
++ technical decision options
++ submitted-technical-review guard
++ review decision history on show page
+```
+
+Why:
+
+- technical review needed its own manager closure step
+- `needs_more_review` belongs here because it is a technical workflow decision, not a submission status
+- managers should not decide technical outcomes without submitted technical evidence
+
+#### [app/Http/Controllers/Admin/ShortlistController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/ShortlistController.php)
+
+This is the shortlist operations surface:
+
+```diff
++ index()
++ store()
++ update()
++ export()
+```
+
+Why:
+
+- shortlist records now have their own operational page
+- approval and ranking happen there, not in queue detail forms only
+- export placeholder is now a real path with CSV output and `exported_at` marking
+
+#### Reviewer queue controllers
+
+- [app/Http/Controllers/ReviewerQueueController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/ReviewerQueueController.php)
+- [app/Http/Controllers/TechnicalReviewerQueueController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/TechnicalReviewerQueueController.php)
+
+What changed:
+
+```diff
++ expire overdue assignments before queue rendering
++ expose intakeNotes to reviewers
++ screening review detail now exposes eligibilityChecklist
+```
+
+Why:
+
+- overdue state should behave as a workflow fact, not a UI color only
+- reviewers and technical reviewers now see prior intake context when it exists
+
+#### Frontend pages
+
+- [resources/js/pages/admin/Screening/Show.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/Screening/Show.vue)
+- [resources/js/pages/admin/Technical/Show.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/Technical/Show.vue)
+- [resources/js/pages/admin/Shortlist/Index.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/Shortlist/Index.vue)
+- [resources/js/pages/reviewers/Review.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/reviewers/Review.vue)
+- [resources/js/pages/reviewers/TechnicalReview.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/reviewers/TechnicalReview.vue)
+- [resources/js/pages/admin/Reviewers/Index.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/Reviewers/Index.vue)
+
+Why these changes matter:
+
+- screening and technical manager pages now support bulk assignment and reopen flows directly
+- technical manager page now records decisions in the same place managers compare technical outputs
+- shortlist page gives Phase 2 a real approval surface
+- reviewer screening page now forces a visible checklist instead of a free-form recommendation only
+- reviewer and technical reviewer pages show prior intake notes
+- reviewer management now supports specialization filtering
+
+#### [routes/web.php](/Users/yonassayfu/Herd/Negadras/routes/web.php)
+#### [routes/console.php](/Users/yonassayfu/Herd/Negadras/routes/console.php)
+
+Important route additions:
+
+```diff
++ admin-submissions.reviewer-assignments.bulk-store
++ admin-submissions.technical-reviewer-assignments.bulk-store
++ reviewer-assignments.transition
++ technical-queue.decision
++ shortlist.index
++ shortlist.store
++ shortlist.update
++ shortlist.export
++ schedule negadras:notify-overdue-reviews hourly
+```
+
+Why:
+
+- this phase needed explicit endpoints for the new operations
+- overdue handling should not depend only on manual execution
+
+### Tests added and updated
+
+- [PhaseTwoCloseoutTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/PhaseTwoCloseoutTest.php)
+- [ScreeningReviewFlowTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/ScreeningReviewFlowTest.php)
+
+Covered behaviors:
+
+- screening submit requires a complete checklist
+- manager can bulk assign reviewers
+- manager can reopen a submitted screening review
+- manager can record technical `needs_more_review`
+- shortlist creation, approval, and export work
+- overdue command expires assignments and sends notifications
+
+### Laravel takeaways from this phase
+
+1. Status history and decision history solve different problems. Keep both if you need real operational auditability.
+2. Bulk actions still belong in services if the single-item constraints must remain enforced.
+3. "Locked after submit" is not enough in a real workflow. You also need a controlled reopen path.
+4. If a reviewer queue depends on due dates, overdue state should become persisted workflow state, not just a calculated badge.
+5. Export placeholders are more useful when they already mark what was exported and when.
+
+### Practical Negadras result
+
+At the end of this phase:
+
+- reviewer and technical review workflows are now operationally complete for Phase 2
+- manager decisions are persisted
+- shortlist records are manageable and approvable
+- overdue reviewer assignments now expire and notify
+- reviewer queues now show the intake context reviewers actually need
+
+### Progress position after this phase
+
+- detailed Phase 2 screening and reviewer workflow backlog is now **complete**
+- full tracked Negadras roadmap is now roughly **43% complete**
+
+What is intentionally still outside this phase:
+
+- judge and panel scoring engine
+- live-session control
+- score locking and final result publication
+- public showcase and archive layer

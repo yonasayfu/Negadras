@@ -9,6 +9,7 @@ use App\ReviewAssignmentType;
 use App\ReviewerAssignmentStatus;
 use App\ScreeningEligibilityStatus;
 use App\ScreeningRecommendation;
+use App\Support\ReviewerAssignmentOverdueService;
 use App\Support\SubmissionFileRegistry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -20,6 +21,7 @@ class ReviewerQueueController extends Controller
     public function index(Request $request): Response
     {
         $this->authorize('viewAny', ReviewerAssignment::class);
+        app(ReviewerAssignmentOverdueService::class)->expireOverdueAssignments();
 
         $search = $request->string('search')->trim()->toString();
         $status = $request->string('status')->trim()->toString();
@@ -90,6 +92,7 @@ class ReviewerQueueController extends Controller
     public function show(ReviewerAssignment $reviewerAssignment): Response
     {
         $this->authorize('view', $reviewerAssignment);
+        app(ReviewerAssignmentOverdueService::class)->expireOverdueAssignments();
 
         abort_unless($reviewerAssignment->isScreening(), 404);
 
@@ -141,6 +144,17 @@ class ReviewerQueueController extends Controller
                 'businessModel' => $submission->business_model,
                 'currentVersionNumber' => $submission->currentVersion?->version_no,
                 'latestStatusReason' => $submission->statusHistory->first()?->reason,
+                'intakeNotes' => $submission->statusHistory
+                    ->filter(fn (SubmissionStatusHistory $entry): bool => filled($entry->reason))
+                    ->take(5)
+                    ->map(fn (SubmissionStatusHistory $entry): array => [
+                        'statusLabel' => $entry->to_status->label(),
+                        'reason' => $entry->reason,
+                        'changedAt' => $entry->created_at?->toDateTimeString(),
+                        'changedBy' => $entry->actor?->name,
+                    ])
+                    ->values()
+                    ->all(),
                 'currentVersionFiles' => $submission->files
                     ->where('submission_version_id', $submission->current_version_id)
                     ->map(fn (SubmissionFile $file): array => [
@@ -234,6 +248,7 @@ class ReviewerQueueController extends Controller
             'reviewerEmail' => $assignment->reviewer?->user?->email,
             'review' => $assignment->screeningReview === null ? null : [
                 'eligibilityStatus' => $assignment->screeningReview->eligibility_status?->value,
+                'eligibilityChecklist' => $assignment->screeningReview->eligibility_checklist,
                 'recommendation' => $assignment->screeningReview->recommendation?->value,
                 'scoreOptional' => $assignment->screeningReview->score_optional,
                 'notes' => $assignment->screeningReview->notes,

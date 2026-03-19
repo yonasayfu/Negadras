@@ -102,6 +102,16 @@ class Submission extends Model
         return $this->hasMany(TechnicalReview::class)->latest('submitted_at');
     }
 
+    public function reviewDecisions(): HasMany
+    {
+        return $this->hasMany(ReviewDecision::class)->latest('decided_at');
+    }
+
+    public function shortlistRecords(): HasMany
+    {
+        return $this->hasMany(ShortlistRecord::class)->latest('updated_at');
+    }
+
     public function screeningReviews(): HasMany
     {
         return $this->hasMany(ScreeningReview::class)->latest('submitted_at');

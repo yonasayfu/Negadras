@@ -115,11 +115,17 @@ Current progress:
 - technical reviewer assignment is now separated from screening assignment
 - reviewer technical queue and manager technical queue completed
 - technical comparison view for manager completed
+- bulk reviewer assignment completed
+- structured screening eligibility checklist completed
+- manager reopen flow for submitted screening and technical reviews completed
+- review decisions persistence completed
+- shortlist records, approval flow, and shortlist export placeholder completed
+- overdue review expiration and in-app overdue notifications completed
 - seasons, stages, industries, applicants, social links, organizations, team members, submission intake, submission versioning, private submission file handling, status history tracking, intake operations, presenter counters, open-call visibility, and dashboard metrics are now in place
-- reviewer profiles, reviewer permissions, reviewer-only visibility rules, reviewer assignments, reviewer notifications, reviewer workload visibility, screening recommendations, screening draft save, final screening submission, reviewer work queue, manager screening queue, reassignment, shortlist or reject or revision decisions, technical assignments, technical queue operations, and technical expert comparison are now in place
+- reviewer profiles, reviewer permissions, reviewer-only visibility rules, reviewer assignments, reviewer notifications, reviewer workload visibility, screening recommendations, structured eligibility checks, screening draft save, final screening submission, reviewer work queue, manager screening queue, reassignment, manager reopen flow, shortlist or reject or revision decisions, technical assignments, technical queue operations, technical expert comparison, shortlist approval, and overdue-review handling are now in place
 - checklist estimate:
-  - Phase N2 detail backlog is roughly 61% complete
-  - full multi-phase roadmap is roughly 37% complete
+  - detailed Phase 2 screening and reviewer workflow backlog is complete
+  - full multi-phase Negadras roadmap is roughly 43% complete
 
 ### Phase N2: Operational Workflow
 

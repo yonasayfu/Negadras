@@ -39,6 +39,12 @@ const breadcrumbs: BreadcrumbItem[] = [
 const reviewForm = useForm({
     intent: 'draft',
     eligibility_status: props.assignment.review?.eligibilityStatus ?? '',
+    eligibility_checklist: {
+        identity_verified: props.assignment.review?.eligibilityChecklist?.identity_verified ?? false,
+        problem_is_clear: props.assignment.review?.eligibilityChecklist?.problem_is_clear ?? false,
+        solution_is_defined: props.assignment.review?.eligibilityChecklist?.solution_is_defined ?? false,
+        files_are_complete: props.assignment.review?.eligibilityChecklist?.files_are_complete ?? false,
+    },
     recommendation: props.assignment.review?.recommendation ?? '',
     score_optional: props.assignment.review?.scoreOptional ? String(props.assignment.review.scoreOptional) : '',
     notes: props.assignment.review?.notes ?? '',
@@ -136,6 +142,23 @@ const submitReview = (): void => {
                         </dl>
                     </div>
 
+                    <div v-if="submission.intakeNotes?.length" class="rounded-[1.5rem] border border-border/70 bg-card/85 p-5 shadow-sm">
+                        <h2 class="text-base font-semibold">Prior intake notes</h2>
+                        <div class="mt-4 grid gap-3">
+                            <article
+                                v-for="(entry, index) in submission.intakeNotes"
+                                :key="`${entry.changedAt}-${index}`"
+                                class="rounded-xl border border-border/70 bg-background/60 p-4"
+                            >
+                                <div class="text-sm font-medium">{{ entry.statusLabel }}</div>
+                                <p class="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{{ entry.reason || 'No note recorded.' }}</p>
+                                <div class="mt-2 text-xs text-muted-foreground">
+                                    {{ entry.changedBy || 'System' }} · {{ entry.changedAt ? new Date(entry.changedAt).toLocaleString() : 'Unknown time' }}
+                                </div>
+                            </article>
+                        </div>
+                    </div>
+
                     <div class="rounded-[1.5rem] border border-border/70 bg-card/85 p-5 shadow-sm">
                         <h2 class="text-base font-semibold">Screening review</h2>
                         <p class="mt-2 text-sm text-muted-foreground">
@@ -169,6 +192,26 @@ const submitReview = (): void => {
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
+                            </div>
+
+                            <div class="grid gap-3 rounded-xl border border-border/70 bg-background/60 p-4">
+                                <div class="text-sm font-medium">Eligibility checklist</div>
+                                <label class="flex items-center gap-3 text-sm">
+                                    <input v-model="reviewForm.eligibility_checklist.identity_verified" type="checkbox" class="size-4 rounded border-border" />
+                                    Identity and presenter ownership are verified
+                                </label>
+                                <label class="flex items-center gap-3 text-sm">
+                                    <input v-model="reviewForm.eligibility_checklist.problem_is_clear" type="checkbox" class="size-4 rounded border-border" />
+                                    Problem statement is clear
+                                </label>
+                                <label class="flex items-center gap-3 text-sm">
+                                    <input v-model="reviewForm.eligibility_checklist.solution_is_defined" type="checkbox" class="size-4 rounded border-border" />
+                                    Solution is sufficiently defined
+                                </label>
+                                <label class="flex items-center gap-3 text-sm">
+                                    <input v-model="reviewForm.eligibility_checklist.files_are_complete" type="checkbox" class="size-4 rounded border-border" />
+                                    Required files are complete
+                                </label>
                             </div>
 
                             <div class="grid gap-2">

@@ -22,7 +22,7 @@ class SubmissionStatusTransitionService
         'under_intake_check' => ['incomplete_returned', 'eligible', 'rejected'],
         'incomplete_returned' => ['submitted'],
         'eligible' => ['incomplete_returned', 'shortlisted', 'rejected'],
-        'shortlisted' => [],
+        'shortlisted' => ['incomplete_returned', 'rejected'],
         'rejected' => [],
     ];
 
@@ -101,15 +101,13 @@ class SubmissionStatusTransitionService
             ]);
         }
 
-        if (
-            $fromStatus === SubmissionStatus::Eligible
+        if ($fromStatus === SubmissionStatus::Eligible
             && in_array($toStatus, [
                 SubmissionStatus::IncompleteReturned,
                 SubmissionStatus::Shortlisted,
                 SubmissionStatus::Rejected,
             ], true)
-            && ! $this->hasSubmittedScreeningReview($submission)
-        ) {
+            && ! $this->hasSubmittedScreeningReview($submission)) {
             throw ValidationException::withMessages([
                 'status' => 'A submitted screening review is required before a manager can make a screening decision.',
             ]);
@@ -122,14 +120,12 @@ class SubmissionStatusTransitionService
                 : $submission->submitted_at,
         ])->save();
 
-        if (
-            $fromStatus === SubmissionStatus::Eligible
+        if (in_array($fromStatus, [SubmissionStatus::Eligible, SubmissionStatus::Shortlisted], true)
             && in_array($toStatus, [
                 SubmissionStatus::IncompleteReturned,
                 SubmissionStatus::Shortlisted,
                 SubmissionStatus::Rejected,
-            ], true)
-        ) {
+            ], true)) {
             ReviewerAssignment::query()
                 ->where('submission_id', $submission->id)
                 ->whereIn('status', [

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\TransitionScreeningDecisionRequest;
+use App\Models\ReviewDecision;
 use App\Models\Reviewer;
 use App\Models\ReviewerAssignment;
 use App\Models\Submission;
@@ -13,6 +14,7 @@ use App\ReviewAssignmentType;
 use App\ReviewerAssignmentStatus;
 use App\SubmissionStatus;
 use App\Support\ActivityLogger;
+use App\Support\ReviewDecisionService;
 use App\Support\SubmissionStatusTransitionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -142,6 +144,7 @@ class ScreeningQueueController extends Controller
             'reviewerAssignments.stage:id,name',
             'reviewerAssignments.screeningReview:id,submission_id,reviewer_assignment_id,eligibility_status,recommendation,score_optional,notes,submitted_at',
             'statusHistory.actor:id,name',
+            'reviewDecisions.decider:id,name',
         ]);
 
         return Inertia::render('admin/Screening/Show', [
@@ -165,6 +168,16 @@ class ScreeningQueueController extends Controller
                     ])
                     ->values()
                     ->all(),
+                'reviewDecisions' => $submission->reviewDecisions
+                    ->map(fn (ReviewDecision $decision): array => [
+                        'id' => $decision->id,
+                        'decisionType' => $decision->decision_type->value,
+                        'decisionLabel' => $decision->decision_type->label(),
+                        'decisionReason' => $decision->decision_reason,
+                        'decidedAt' => $decision->decided_at?->toDateTimeString(),
+                        'decidedBy' => $decision->decider?->name,
+                    ])
+                    ->all(),
             ],
             'reviewerOptions' => Reviewer::query()
                 ->with('user:id,name')
@@ -183,10 +196,18 @@ class ScreeningQueueController extends Controller
         TransitionScreeningDecisionRequest $request,
         Submission $submission,
         SubmissionStatusTransitionService $statusTransitions,
+        ReviewDecisionService $reviewDecisionService,
     ): RedirectResponse {
         $this->authorize('update', $submission);
 
         $toStatus = SubmissionStatus::from($request->validated('status'));
+
+        $reviewDecisionService->record(
+            submission: $submission,
+            decisionType: $reviewDecisionService->fromSubmissionStatus($toStatus),
+            actor: $request->user(),
+            reason: $request->validated('reason'),
+        );
 
         $statusTransitions->transition(
             submission: $submission,

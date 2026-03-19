@@ -22,6 +22,7 @@ class ReviewerManagementController extends Controller
         $this->authorize('viewAny', Reviewer::class);
 
         $search = $request->string('search')->trim()->toString();
+        $specialization = $request->string('specialization')->trim()->toString();
 
         return Inertia::render('admin/Reviewers/Index', [
             'reviewers' => Reviewer::query()
@@ -45,6 +46,7 @@ class ReviewerManagementController extends Controller
                             });
                     });
                 })
+                ->when($specialization !== '', fn ($query) => $query->where('specialization', 'ilike', "%{$specialization}%"))
                 ->orderByDesc('is_active')
                 ->orderBy(
                     User::query()
@@ -57,7 +59,19 @@ class ReviewerManagementController extends Controller
                 ->through(fn (Reviewer $reviewer): array => $this->reviewerSummary($reviewer)),
             'filters' => [
                 'search' => $search,
+                'specialization' => $specialization,
             ],
+            'specializationOptions' => Reviewer::query()
+                ->whereNotNull('specialization')
+                ->where('specialization', '!=', '')
+                ->distinct()
+                ->orderBy('specialization')
+                ->pluck('specialization')
+                ->map(fn (string $value): array => [
+                    'value' => $value,
+                    'label' => $value,
+                ])
+                ->all(),
         ]);
     }
 

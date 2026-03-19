@@ -8,15 +8,18 @@ import ResourcePagination from '@/components/admin/ResourcePagination.vue';
 import ResourceToolbar from '@/components/admin/ResourceToolbar.vue';
 import StatusBadge from '@/components/admin/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { create as createReviewer, edit as editReviewer, index as reviewersIndex } from '@/routes/reviewers';
-import type { BreadcrumbItem, ManagedReviewer, PaginatedResource } from '@/types';
+import type { BreadcrumbItem, ManagedReviewer, PaginatedResource, SelectOption } from '@/types';
 
 type Props = {
     reviewers: PaginatedResource<ManagedReviewer>;
     filters: {
         search: string;
+        specialization: string;
     };
+    specializationOptions: SelectOption[];
 };
 
 const props = defineProps<Props>();
@@ -28,12 +31,22 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const updateSearch = (search: string): void => {
-    router.get(reviewersIndex().url, { search }, {
+const allSpecializationsValue = '__all_specializations__';
+
+const updateFilters = (search: string, specialization: string): void => {
+    router.get(reviewersIndex().url, { search, specialization: specialization || undefined }, {
         preserveState: true,
         preserveScroll: true,
         replace: true,
     });
+};
+
+const updateSearch = (search: string): void => {
+    updateFilters(search, props.filters.specialization);
+};
+
+const updateSpecialization = (specialization: string): void => {
+    updateFilters(props.filters.search, specialization);
 };
 </script>
 
@@ -60,7 +73,21 @@ const updateSearch = (search: string): void => {
                 :search="filters.search"
                 search-placeholder="Search reviewers, emails, organization, or specialization"
                 @update:search="updateSearch"
-            />
+            >
+                <template #actions>
+                    <Select :model-value="filters.specialization || allSpecializationsValue" @update:model-value="(value) => updateSpecialization(String(value) === allSpecializationsValue ? '' : String(value ?? ''))">
+                        <SelectTrigger class="w-[220px]">
+                            <SelectValue placeholder="All specializations" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem :value="allSpecializationsValue">All specializations</SelectItem>
+                            <SelectItem v-for="option in specializationOptions" :key="option.value" :value="String(option.value)">
+                                {{ option.label }}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+                </template>
+            </ResourceToolbar>
 
             <div
                 v-if="reviewers.data.length === 0"

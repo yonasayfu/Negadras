@@ -158,6 +158,28 @@ class ReviewerAssignmentService
         return $newAssignment;
     }
 
+    /**
+     * @param  list<Reviewer>  $reviewers
+     * @return list<ReviewerAssignment>
+     */
+    public function bulkAssign(
+        Submission $submission,
+        array $reviewers,
+        User $actor,
+        ?string $dueAt = null,
+        ReviewAssignmentType $assignmentType = ReviewAssignmentType::Screening,
+    ): array {
+        return collect($reviewers)
+            ->map(fn (Reviewer $reviewer): ReviewerAssignment => $this->assign(
+                submission: $submission,
+                reviewer: $reviewer,
+                actor: $actor,
+                dueAt: $dueAt,
+                assignmentType: $assignmentType,
+            ))
+            ->all();
+    }
+
     public function saveDraftReview(
         ReviewerAssignment $assignment,
         array $payload,
@@ -171,6 +193,7 @@ class ReviewerAssignmentService
             [
                 'submission_id' => $assignment->submission_id,
                 'eligibility_status' => $payload['eligibility_status'],
+                'eligibility_checklist' => $payload['eligibility_checklist'] ?? null,
                 'recommendation' => $payload['recommendation'],
                 'score_optional' => $payload['score_optional'],
                 'notes' => $payload['notes'],
@@ -216,6 +239,50 @@ class ReviewerAssignmentService
             });
 
         return $review;
+    }
+
+    public function reopenReview(
+        ReviewerAssignment $assignment,
+        User $actor,
+        string $reason,
+    ): void {
+        $assignment->update([
+            'status' => ReviewerAssignmentStatus::InProgress,
+        ]);
+
+        if ($assignment->isScreening()) {
+            $assignment->screeningReview?->update([
+                'submitted_at' => null,
+            ]);
+        }
+
+        if ($assignment->isTechnical()) {
+            $assignment->technicalReview?->update([
+                'submitted_at' => null,
+            ]);
+        }
+
+        ActivityLogger::record(
+            actor: $actor,
+            event: 'negadras.reviewer-assignments.reopened',
+            description: "Reopened {$assignment->assignment_type->label()} review for {$assignment->submission?->title}.",
+            subject: $assignment,
+            properties: [
+                'assignment_type' => $assignment->assignment_type->value,
+                'submission_id' => $assignment->submission_id,
+                'reason' => $reason,
+            ],
+        );
+
+        $assignment->reviewer?->user?->notify(new SystemMessageNotification(
+            title: "{$assignment->assignment_type->label()} reopened",
+            message: "Your {$assignment->assignment_type->label()} for {$assignment->submission?->title} was reopened for further work.",
+            actionUrl: $assignment->isScreening()
+                ? route('reviewer-queue.show', $assignment)
+                : route('technical-reviewer-queue.show', $assignment),
+            actionLabel: 'Open assignment',
+            level: 'warning',
+        ));
     }
 
     public function saveDraftTechnicalReview(

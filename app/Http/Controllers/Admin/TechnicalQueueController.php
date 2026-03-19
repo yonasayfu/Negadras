@@ -3,14 +3,22 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\StoreTechnicalDecisionRequest;
+use App\Models\ReviewDecision;
 use App\Models\Reviewer;
 use App\Models\ReviewerAssignment;
 use App\Models\Submission;
 use App\ReviewAssignmentType;
+use App\ReviewDecisionType;
 use App\ReviewerAssignmentStatus;
 use App\SubmissionStatus;
+use App\Support\ActivityLogger;
+use App\Support\ReviewDecisionService;
+use App\Support\SubmissionStatusTransitionService;
 use App\TechnicalReviewRecommendation;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -111,6 +119,7 @@ class TechnicalQueueController extends Controller
             'reviewerAssignments.stage:id,name',
             'reviewerAssignments.screeningReview:id,submission_id,reviewer_assignment_id,eligibility_status,recommendation,score_optional,notes,submitted_at',
             'reviewerAssignments.technicalReview:id,submission_id,reviewer_assignment_id,reviewer_id,stage_id,innovation_score_optional,feasibility_score_optional,execution_score_optional,market_score_optional,strengths,weaknesses,risk_note,recommendation,submitted_at',
+            'reviewDecisions.decider:id,name',
         ]);
 
         return Inertia::render('admin/Technical/Show', [
@@ -160,6 +169,16 @@ class TechnicalQueueController extends Controller
                         'submittedAt' => $assignment->screeningReview?->submitted_at?->toDateTimeString(),
                     ])
                     ->all(),
+                'reviewDecisions' => $submission->reviewDecisions
+                    ->map(fn (ReviewDecision $decision): array => [
+                        'id' => $decision->id,
+                        'decisionType' => $decision->decision_type->value,
+                        'decisionLabel' => $decision->decision_type->label(),
+                        'decisionReason' => $decision->decision_reason,
+                        'decidedAt' => $decision->decided_at?->toDateTimeString(),
+                        'decidedBy' => $decision->decider?->name,
+                    ])
+                    ->all(),
             ],
             'reviewerOptions' => Reviewer::query()
                 ->with('user:id,name,email')
@@ -177,7 +196,65 @@ class TechnicalQueueController extends Controller
                     'label' => sprintf('%s (%s active technical)', $reviewer->user?->name ?? 'Reviewer', $reviewer->activeAssignmentsCount),
                 ])
                 ->all(),
+            'decisionOptions' => collect(ReviewDecisionType::cases())->map(fn (ReviewDecisionType $decision): array => [
+                'value' => $decision->value,
+                'label' => $decision->label(),
+            ])->all(),
         ]);
+    }
+
+    public function decide(
+        StoreTechnicalDecisionRequest $request,
+        Submission $submission,
+        ReviewDecisionService $reviewDecisionService,
+        SubmissionStatusTransitionService $statusTransitions,
+    ): RedirectResponse {
+        $this->authorize('update', $submission);
+
+        $decisionType = ReviewDecisionType::from($request->validated('decision_type'));
+        $reason = $request->validated('reason');
+
+        $hasSubmittedTechnicalReview = $submission->technicalReviews()
+            ->whereNotNull('submitted_at')
+            ->exists();
+
+        if (! $hasSubmittedTechnicalReview) {
+            throw ValidationException::withMessages([
+                'decision_type' => 'At least one submitted technical review is required before recording a technical decision.',
+            ]);
+        }
+
+        $decision = $reviewDecisionService->record(
+            submission: $submission,
+            decisionType: $decisionType,
+            actor: $request->user(),
+            reason: $reason,
+        );
+
+        $toStatus = $reviewDecisionService->toSubmissionStatus($decisionType);
+
+        if ($toStatus !== null && $toStatus !== $submission->status) {
+            $statusTransitions->transition(
+                submission: $submission,
+                toStatus: $toStatus,
+                actor: $request->user(),
+                reason: $reason,
+            );
+        }
+
+        ActivityLogger::record(
+            actor: $request->user(),
+            event: 'negadras.technical.decided',
+            description: "Recorded technical decision {$decisionType->label()} for {$submission->title}.",
+            subject: $decision,
+            properties: [
+                'submission_id' => $submission->id,
+                'decision_type' => $decisionType->value,
+                'reason' => $reason,
+            ],
+        );
+
+        return to_route('technical-queue.show', $submission)->with('success', 'Technical decision recorded successfully.');
     }
 
     /**

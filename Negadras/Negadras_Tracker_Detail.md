@@ -628,7 +628,7 @@ Add these entities:
 * [x] Add assignment statuses: `assigned`, `in_progress`, `submitted`, `expired`, `cancelled`
 * [x] Create assignment service
 * [x] Create assignment UI for admin/manager
-* [ ] Add bulk assignment support
+* [x] Add bulk assignment support
 * [x] Add due date support
 * [x] Add reviewer workload count display
 
@@ -649,7 +649,7 @@ Add these entities:
 * [x] Add fields: `submission_id`, `reviewer_assignment_id`, `eligibility_status`, `recommendation`, `score_optional`, `notes`, `submitted_at`
 * [x] Create ScreeningReview model
 * [x] Create screening review form
-* [ ] Add structured eligibility checklist
+* [x] Add structured eligibility checklist
 * [x] Add recommendation choices:
 
   * [x] pass
@@ -661,11 +661,11 @@ Add these entities:
 
 ### C2. Screening Form Logic
 
-* [ ] Prevent final submission without required checklist items
+* [x] Prevent final submission without required checklist items
 * [x] Allow save as draft
 * [x] Mark reviewer assignment `in_progress` on first edit
 * [x] Mark reviewer assignment `submitted` on final submit
-* [ ] Lock submitted review unless manager reopens
+* [x] Lock submitted review unless manager reopens
 
 ---
 
@@ -693,26 +693,26 @@ Add these entities:
 
 ### E1. Review Decisions
 
-* [ ] Create `review_decisions` migration
-* [ ] Add fields: `submission_id`, `stage_id`, `decision_type`, `decision_reason`, `decided_by`, `decided_at`
-* [ ] Create ReviewDecision model
+* [x] Create `review_decisions` migration
+* [x] Add fields: `submission_id`, `stage_id`, `decision_type`, `decision_reason`, `decided_by`, `decided_at`
+* [x] Create ReviewDecision model
 * [x] Add decision options:
 
   * [x] shortlisted
   * [x] rejected
   * [x] returned_for_revision
-  * [ ] needs_more_review
+  * [x] needs_more_review
 * [x] Add decision service to update submission status
 * [x] Log decision in status history
 
 ### E2. Shortlist Records
 
-* [ ] Create `shortlist_records` migration
-* [ ] Add fields: `submission_id`, `stage_id`, `rank_order_optional`, `notes`, `created_by`
-* [ ] Create ShortlistRecord model
-* [ ] Create shortlist list page
-* [ ] Add shortlist export support placeholder
-* [ ] Add manager approval flow for shortlist
+* [x] Create `shortlist_records` migration
+* [x] Add fields: `submission_id`, `stage_id`, `rank_order_optional`, `notes`, `created_by`
+* [x] Create ShortlistRecord model
+* [x] Create shortlist list page
+* [x] Add shortlist export support placeholder
+* [x] Add manager approval flow for shortlist
 
 ---
 
@@ -734,7 +734,7 @@ Add these entities:
 * [x] Show submission summary
 * [x] Show uploaded files
 * [x] Show version information
-* [ ] Show prior intake notes if allowed
+* [x] Show prior intake notes if allowed
 * [x] Show review form entry point
 
 ---
@@ -767,7 +767,7 @@ Add these entities:
 * [x] Notify manager on submitted review
 * [x] Notify presenter when revision requested
 * [x] Notify presenter on rejection or shortlist result
-* [ ] Add in-app notifications for overdue reviews
+* [x] Add in-app notifications for overdue reviews
 
 ---
 
@@ -779,7 +779,7 @@ Add these entities:
 * [x] Manager can shortlist based on reviews
 * [x] Decision updates submission status
 * [x] Duplicate assignment prevention works
-* [ ] Reviewer overdue state behaves correctly
+* [x] Reviewer overdue state behaves correctly
 
 ---
 
@@ -793,6 +793,7 @@ Add these entities:
 * [x] reviewer dashboard works
 * [x] review queue works
 * [x] tests pass
+* [x] Phase 2 screening and reviewer workflow is complete
 
 ---
 

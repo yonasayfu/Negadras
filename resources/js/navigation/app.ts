@@ -36,6 +36,7 @@ import { index as reviewersIndex } from '@/routes/reviewers';
 import { index as rolesIndex } from '@/routes/roles';
 import { index as screeningQueueIndex } from '@/routes/screening-queue';
 import { index as seasonsIndex } from '@/routes/seasons';
+import { index as shortlistIndex } from '@/routes/shortlist';
 import { index as stagesIndex } from '@/routes/stages';
 import { index as submissionsIndex } from '@/routes/submissions';
 import { index as technicalQueueIndex } from '@/routes/technical-queue';
@@ -180,6 +181,12 @@ export const appNavigation: NavGroup[] = [
                 href: technicalQueueIndex(),
                 icon: ListChecks,
                 permission: 'technical-queue.view',
+            },
+            {
+                title: 'Shortlist',
+                href: shortlistIndex(),
+                icon: FileSpreadsheet,
+                permission: 'submissions.view',
             },
             {
                 title: 'Users',

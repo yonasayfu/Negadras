@@ -7,6 +7,7 @@ use App\Models\SubmissionFile;
 use App\Models\SubmissionStatusHistory;
 use App\ReviewAssignmentType;
 use App\ReviewerAssignmentStatus;
+use App\Support\ReviewerAssignmentOverdueService;
 use App\Support\SubmissionFileRegistry;
 use App\TechnicalReviewRecommendation;
 use Illuminate\Http\Request;
@@ -19,6 +20,7 @@ class TechnicalReviewerQueueController extends Controller
     public function index(Request $request): Response
     {
         $this->authorize('viewAny', ReviewerAssignment::class);
+        app(ReviewerAssignmentOverdueService::class)->expireOverdueAssignments();
 
         $search = $request->string('search')->trim()->toString();
         $status = $request->string('status')->trim()->toString();
@@ -89,6 +91,7 @@ class TechnicalReviewerQueueController extends Controller
     public function show(ReviewerAssignment $reviewerAssignment): Response
     {
         $this->authorize('view', $reviewerAssignment);
+        app(ReviewerAssignmentOverdueService::class)->expireOverdueAssignments();
 
         abort_unless($reviewerAssignment->isTechnical(), 404);
 
@@ -141,6 +144,17 @@ class TechnicalReviewerQueueController extends Controller
                 'businessModel' => $submission->business_model,
                 'currentVersionNumber' => $submission->currentVersion?->version_no,
                 'latestStatusReason' => $submission->statusHistory->first()?->reason,
+                'intakeNotes' => $submission->statusHistory
+                    ->filter(fn (SubmissionStatusHistory $entry): bool => filled($entry->reason))
+                    ->take(5)
+                    ->map(fn (SubmissionStatusHistory $entry): array => [
+                        'statusLabel' => $entry->to_status->label(),
+                        'reason' => $entry->reason,
+                        'changedAt' => $entry->created_at?->toDateTimeString(),
+                        'changedBy' => $entry->actor?->name,
+                    ])
+                    ->values()
+                    ->all(),
                 'screeningReviews' => $submission->screeningReviews
                     ->filter(fn ($review) => $review->submitted_at !== null)
                     ->map(fn ($review): array => [

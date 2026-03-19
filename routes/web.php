@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\RoleManagementController;
 use App\Http\Controllers\Admin\ScreeningQueueController;
 use App\Http\Controllers\Admin\SeasonManagementController;
 use App\Http\Controllers\Admin\SettingsManagementController;
+use App\Http\Controllers\Admin\ShortlistController;
 use App\Http\Controllers\Admin\StageManagementController;
 use App\Http\Controllers\Admin\SubmissionManagementController;
 use App\Http\Controllers\Admin\TechnicalQueueController;
@@ -171,13 +172,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:reviewer-assignments.create')
         ->name('admin-submissions.reviewer-assignments.store');
 
+    Route::post('admin/submissions/{submission}/reviewer-assignments/bulk', [ReviewerAssignmentManagementController::class, 'storeBulk'])
+        ->middleware('permission:reviewer-assignments.create')
+        ->name('admin-submissions.reviewer-assignments.bulk-store');
+
     Route::post('admin/submissions/{submission}/technical-reviewer-assignments', [ReviewerAssignmentManagementController::class, 'storeTechnical'])
         ->middleware('permission:reviewer-assignments.create')
         ->name('admin-submissions.technical-reviewer-assignments.store');
 
+    Route::post('admin/submissions/{submission}/technical-reviewer-assignments/bulk', [ReviewerAssignmentManagementController::class, 'storeTechnicalBulk'])
+        ->middleware('permission:reviewer-assignments.create')
+        ->name('admin-submissions.technical-reviewer-assignments.bulk-store');
+
     Route::put('admin/reviewer-assignments/{reviewerAssignment}', [ReviewerAssignmentManagementController::class, 'update'])
         ->middleware('permission:reviewer-assignments.update')
         ->name('reviewer-assignments.update');
+
+    Route::post('admin/reviewer-assignments/{reviewerAssignment}/transition', [ReviewerAssignmentManagementController::class, 'transition'])
+        ->middleware('permission:reviewer-assignments.update')
+        ->name('reviewer-assignments.transition');
 
     Route::delete('admin/submissions/{submission}/reviewer-assignments/{reviewerAssignment}', [ReviewerAssignmentManagementController::class, 'destroy'])
         ->middleware('permission:reviewer-assignments.update')
@@ -202,6 +215,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('admin/technical/{submission}', [TechnicalQueueController::class, 'show'])
         ->middleware('permission:technical-queue.view')
         ->name('technical-queue.show');
+
+    Route::post('admin/technical/{submission}/decision', [TechnicalQueueController::class, 'decide'])
+        ->middleware('permission:submissions.update')
+        ->name('technical-queue.decision');
+
+    Route::get('admin/shortlist', [ShortlistController::class, 'index'])
+        ->middleware('permission:submissions.view')
+        ->name('shortlist.index');
+
+    Route::post('admin/shortlist/{submission}', [ShortlistController::class, 'store'])
+        ->middleware('permission:submissions.update')
+        ->name('shortlist.store');
+
+    Route::put('admin/shortlist/{shortlistRecord}', [ShortlistController::class, 'update'])
+        ->middleware('permission:submissions.update')
+        ->name('shortlist.update');
+
+    Route::get('admin/shortlist-export.csv', [ShortlistController::class, 'export'])
+        ->middleware('permission:submissions.view')
+        ->name('shortlist.export');
 
     Route::get('admin/reviewers', [ReviewerManagementController::class, 'index'])
         ->middleware('permission:reviewers.view')

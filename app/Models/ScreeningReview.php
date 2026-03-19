@@ -21,6 +21,7 @@ class ScreeningReview extends Model
         'submission_id',
         'reviewer_assignment_id',
         'eligibility_status',
+        'eligibility_checklist',
         'recommendation',
         'score_optional',
         'notes',
@@ -34,6 +35,7 @@ class ScreeningReview extends Model
     {
         return [
             'eligibility_status' => ScreeningEligibilityStatus::class,
+            'eligibility_checklist' => 'array',
             'recommendation' => ScreeningRecommendation::class,
             'submitted_at' => 'datetime',
         ];

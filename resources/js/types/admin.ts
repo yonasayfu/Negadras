@@ -163,6 +163,7 @@ export type ManagedSubmission = {
     currentVersionNumber?: number | null;
     versionCount?: number;
     latestStatusReason?: string | null;
+    intakeNotes?: SubmissionIntakeNote[];
     intakeChecklist?: SubmissionIntakeChecklist;
     availableTransitions?: SubmissionTransitionOption[];
     draftFiles?: ManagedSubmissionFile[];
@@ -194,6 +195,7 @@ export type ManagedSubmission = {
         notes: string | null;
         submittedAt: string | null;
     }[];
+    reviewDecisions?: ManagedReviewDecision[];
 };
 
 export type ManagedReviewer = {
@@ -207,6 +209,34 @@ export type ManagedReviewer = {
     bio: string | null;
     isActive: boolean;
     activeAssignmentsCount: number;
+};
+
+export type ManagedReviewDecision = {
+    id: number;
+    decisionType: string;
+    decisionLabel: string;
+    decisionReason: string | null;
+    decidedAt: string | null;
+    decidedBy: string | null;
+};
+
+export type ManagedShortlistRecord = {
+    id: number;
+    submissionId: number;
+    submissionTitle: string | null;
+    seasonName: string | null;
+    stageName: string | null;
+    applicantName: string | null;
+    organizationName: string | null;
+    rankOrderOptional: number | null;
+    notes: string | null;
+    approvalStatus: string;
+    approvalStatusLabel: string;
+    createdBy: string | null;
+    approvedBy: string | null;
+    approvedAt: string | null;
+    exportedAt: string | null;
+    createdAt: string | null;
 };
 
 export type ManagedReviewerAssignment = {
@@ -230,6 +260,7 @@ export type ManagedReviewerAssignment = {
     recommendationLabel?: string | null;
     review?: {
         eligibilityStatus: string | null;
+        eligibilityChecklist?: Record<string, boolean> | null;
         recommendation: string | null;
         scoreOptional: number | null;
         notes: string | null;
@@ -256,6 +287,13 @@ export type SubmissionIntakeChecklistItem = {
     key: string;
     label: string;
     passed: boolean;
+};
+
+export type SubmissionIntakeNote = {
+    statusLabel: string;
+    reason: string | null;
+    changedAt: string | null;
+    changedBy: string | null;
 };
 
 export type SubmissionVersionEntry = {

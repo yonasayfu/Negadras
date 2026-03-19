@@ -201,6 +201,23 @@ const submitReview = (): void => {
                             </div>
                         </form>
                     </div>
+
+                    <div v-if="submission.intakeNotes?.length" class="rounded-[1.5rem] border border-border/70 bg-card/85 p-5 shadow-sm">
+                        <h2 class="text-base font-semibold">Prior intake and manager notes</h2>
+                        <div class="mt-4 grid gap-3">
+                            <article
+                                v-for="(entry, index) in submission.intakeNotes"
+                                :key="`${entry.changedAt}-${index}`"
+                                class="rounded-xl border border-border/70 bg-background/60 p-4"
+                            >
+                                <div class="text-sm font-medium">{{ entry.statusLabel }}</div>
+                                <p class="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{{ entry.reason || 'No note recorded.' }}</p>
+                                <div class="mt-2 text-xs text-muted-foreground">
+                                    {{ entry.changedBy || 'System' }} · {{ entry.changedAt ? new Date(entry.changedAt).toLocaleString() : 'Unknown time' }}
+                                </div>
+                            </article>
+                        </div>
+                    </div>
                 </aside>
             </div>
 

@@ -50,6 +50,12 @@ test('reviewer can save a draft screening review and later submit it', function 
         ->post(route('screening-reviews.store', $assignment), [
             'intent' => 'submit',
             'eligibility_status' => ScreeningEligibilityStatus::Eligible->value,
+            'eligibility_checklist' => [
+                'identity_verified' => true,
+                'problem_is_clear' => true,
+                'solution_is_defined' => true,
+                'files_are_complete' => true,
+            ],
             'recommendation' => ScreeningRecommendation::Pass->value,
             'score_optional' => 88,
             'notes' => 'Ready for the next step with minor clarification only.',

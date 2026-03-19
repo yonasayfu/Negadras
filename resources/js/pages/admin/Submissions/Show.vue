@@ -1,21 +1,43 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ArrowLeft } from 'lucide-vue-next';
 import StatusBadge from '@/components/admin/StatusBadge.vue';
+import InputError from '@/components/InputError.vue';
 import SubmissionFilesPanel from '@/components/submissions/SubmissionFilesPanel.vue';
 import PageContainer from '@/components/PageContainer.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { index as adminSubmissionsIndex } from '@/routes/admin-submissions';
-import type { BreadcrumbItem, ManagedSubmission, SubmissionFileDefinition } from '@/types';
+import { index as adminSubmissionsIndex, transition as transitionSubmissionStatus } from '@/routes/admin-submissions';
+import type { BreadcrumbItem, ManagedSubmission, SubmissionFileDefinition, SubmissionTransitionOption } from '@/types';
 
 type Props = {
     submission: ManagedSubmission;
     submissionFileDefinitions?: SubmissionFileDefinition[];
+    availableTransitions: SubmissionTransitionOption[];
+    canTransitionStatus: boolean;
 };
 
 const props = defineProps<Props>();
+
+const transitionForm = useForm({
+    status: props.availableTransitions[0]?.value ?? '',
+    reason: '',
+});
+
+const selectedTransitionRequiresReason = (): boolean => {
+    return props.availableTransitions.find((option) => option.value === transitionForm.status)?.requiresReason ?? false;
+};
+
+const submitStatusTransition = (): void => {
+    transitionForm.post(transitionSubmissionStatus(props.submission.id).url, {
+        preserveScroll: true,
+        onSuccess: () => {
+            transitionForm.reset('reason');
+        },
+    });
+};
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -112,7 +134,87 @@ const breadcrumbs: BreadcrumbItem[] = [
                                 <dt class="text-muted-foreground">Last updated</dt>
                                 <dd class="font-medium">{{ submission.updatedAt ? new Date(submission.updatedAt).toLocaleString() : 'N/A' }}</dd>
                             </div>
+                            <div v-if="submission.latestStatusReason">
+                                <dt class="text-muted-foreground">Latest status note</dt>
+                                <dd class="font-medium">{{ submission.latestStatusReason }}</dd>
+                            </div>
                         </dl>
+                    </div>
+
+                    <div v-if="canTransitionStatus && availableTransitions.length > 0" class="rounded-[1.5rem] border border-border/70 bg-card/85 p-5 shadow-sm">
+                        <h2 class="text-base font-semibold">Status transition</h2>
+                        <p class="mt-2 text-sm text-muted-foreground">
+                            Move the submission through intake review. Return and rejection actions require a reason.
+                        </p>
+
+                        <form class="mt-4 grid gap-4" @submit.prevent="submitStatusTransition">
+                            <div class="grid gap-2">
+                                <Label for="status">Next status</Label>
+                                <select
+                                    id="status"
+                                    v-model="transitionForm.status"
+                                    class="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none ring-offset-background focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                                >
+                                    <option v-for="option in availableTransitions" :key="option.value" :value="option.value">
+                                        {{ option.label }}
+                                    </option>
+                                </select>
+                                <InputError :message="transitionForm.errors.status" />
+                            </div>
+
+                            <div class="grid gap-2">
+                                <Label for="reason">Reason</Label>
+                                <textarea
+                                    id="reason"
+                                    v-model="transitionForm.reason"
+                                    rows="4"
+                                    class="flex min-h-28 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                                    :placeholder="selectedTransitionRequiresReason() ? 'Reason is required for this transition.' : 'Optional internal note.'"
+                                />
+                                <InputError :message="transitionForm.errors.reason" />
+                            </div>
+
+                            <Button type="submit" :disabled="transitionForm.processing || !transitionForm.status">
+                                Update status
+                            </Button>
+                        </form>
+                    </div>
+
+                    <div class="rounded-[1.5rem] border border-border/70 bg-card/85 p-5 shadow-sm">
+                        <div class="flex items-center justify-between gap-3">
+                            <h2 class="text-base font-semibold">Status timeline</h2>
+                            <span class="text-sm text-muted-foreground">{{ submission.statusTimeline?.length ?? 0 }} event(s)</span>
+                        </div>
+
+                        <div v-if="(submission.statusTimeline?.length ?? 0) === 0" class="mt-4 text-sm text-muted-foreground">
+                            No status events have been recorded yet.
+                        </div>
+
+                        <ol v-else class="mt-4 grid gap-3">
+                            <li
+                                v-for="entry in submission.statusTimeline"
+                                :key="entry.id"
+                                class="rounded-xl border border-border/70 bg-background/60 p-4"
+                            >
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <div class="flex items-center gap-2">
+                                        <StatusBadge :label="entry.toStatusLabel" :tone="entry.toStatusTone" />
+                                        <span class="text-sm text-muted-foreground">
+                                            {{ entry.fromStatusLabel ? `${entry.fromStatusLabel} -> ${entry.toStatusLabel}` : `Initial status: ${entry.toStatusLabel}` }}
+                                        </span>
+                                    </div>
+                                    <div class="text-xs text-muted-foreground">
+                                        {{ entry.changedAt ? new Date(entry.changedAt).toLocaleString() : 'Unknown time' }}
+                                    </div>
+                                </div>
+                                <div class="mt-2 text-sm text-muted-foreground">
+                                    {{ entry.reason || 'No note recorded.' }}
+                                </div>
+                                <div class="mt-2 text-xs text-muted-foreground">
+                                    Changed by {{ entry.changedBy || 'System' }}
+                                </div>
+                            </li>
+                        </ol>
                     </div>
 
                     <div class="rounded-[1.5rem] border border-border/70 bg-card/85 p-5 shadow-sm">

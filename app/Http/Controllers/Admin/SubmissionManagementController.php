@@ -3,9 +3,15 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\TransitionSubmissionStatusRequest;
 use App\Models\Submission;
 use App\Models\SubmissionFile;
+use App\Models\SubmissionStatusHistory;
+use App\SubmissionStatus;
+use App\Support\ActivityLogger;
 use App\Support\SubmissionFileRegistry;
+use App\Support\SubmissionStatusTransitionService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -68,6 +74,7 @@ class SubmissionManagementController extends Controller
             'versions.creator:id,name',
             'files.version:id,version_no',
             'files.uploadedBy:id,name',
+            'statusHistory.actor:id,name',
         ]);
 
         return Inertia::render('admin/Submissions/Show', [
@@ -82,6 +89,7 @@ class SubmissionManagementController extends Controller
                 'isPublicAfterApproval' => $submission->is_public_after_approval,
                 'currentVersionNumber' => $submission->currentVersion?->version_no,
                 'versionCount' => $submission->versions->count(),
+                'latestStatusReason' => $submission->statusHistory->first()?->reason,
                 'draftFiles' => $submission->files
                     ->whereNull('submission_version_id')
                     ->map(fn (SubmissionFile $file): array => $this->submissionFileSummary($file))
@@ -106,9 +114,46 @@ class SubmissionManagementController extends Controller
                     ])
                     ->values()
                     ->all(),
+                'statusTimeline' => $submission->statusHistory
+                    ->map(fn (SubmissionStatusHistory $entry): array => $this->statusTimelineEntry($entry))
+                    ->values()
+                    ->all(),
             ],
             'submissionFileDefinitions' => $this->submissionFileDefinitions(),
+            'availableTransitions' => app(SubmissionStatusTransitionService::class)->availableStaffTransitions($submission),
+            'canTransitionStatus' => request()->user()?->can('update', $submission) ?? false,
         ]);
+    }
+
+    public function transition(
+        TransitionSubmissionStatusRequest $request,
+        Submission $submission,
+        SubmissionStatusTransitionService $statusTransitions,
+    ): RedirectResponse {
+        $this->authorize('update', $submission);
+
+        $toStatus = SubmissionStatus::from($request->validated('status'));
+
+        $statusTransitions->transition(
+            submission: $submission,
+            toStatus: $toStatus,
+            actor: $request->user(),
+            reason: $request->validated('reason'),
+        );
+
+        ActivityLogger::record(
+            actor: $request->user(),
+            event: 'negadras.submissions.status-transitioned',
+            description: "Moved {$submission->title} to {$toStatus->label()}.",
+            subject: $submission,
+            properties: [
+                'to_status' => $toStatus->value,
+                'reason' => $request->validated('reason'),
+            ],
+            request: $request,
+        );
+
+        return to_route('admin-submissions.show', $submission)->with('success', 'Submission status updated successfully.');
     }
 
     /**
@@ -171,5 +216,23 @@ class SubmissionManagementController extends Controller
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function statusTimelineEntry(SubmissionStatusHistory $entry): array
+    {
+        return [
+            'id' => $entry->id,
+            'fromStatus' => $entry->from_status?->value,
+            'fromStatusLabel' => $entry->from_status?->label(),
+            'toStatus' => $entry->to_status->value,
+            'toStatusLabel' => $entry->to_status->label(),
+            'toStatusTone' => $entry->to_status->tone(),
+            'reason' => $entry->reason,
+            'changedAt' => $entry->created_at?->toDateTimeString(),
+            'changedBy' => $entry->actor?->name,
+        ];
     }
 }

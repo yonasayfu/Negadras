@@ -87,6 +87,11 @@ class Submission extends Model
         return $this->hasMany(SubmissionFile::class)->latest('uploaded_at');
     }
 
+    public function statusHistory(): HasMany
+    {
+        return $this->hasMany(SubmissionStatusHistory::class)->latest('created_at');
+    }
+
     public function scopeDraft(Builder $query): Builder
     {
         return $query->where('status', SubmissionStatus::Draft);
@@ -100,6 +105,11 @@ class Submission extends Model
     public function scopeEligible(Builder $query): Builder
     {
         return $query->where('status', SubmissionStatus::Eligible);
+    }
+
+    public function scopeUnderIntakeCheck(Builder $query): Builder
+    {
+        return $query->where('status', SubmissionStatus::UnderIntakeCheck);
     }
 
     public function isOwnedBy(User $user): bool

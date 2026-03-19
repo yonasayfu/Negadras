@@ -2220,3 +2220,368 @@ What is still intentionally not done in this phase:
 - file review notes per attachment
 
 Those belong to later intake/review phases, not this storage foundation phase.
+
+## Entry 006: Phase N1 Step 6 - Submission Status Tracking Foundation
+
+### Scope
+
+This batch added the real workflow history layer for submissions:
+
+- `submission_status_history`
+- controlled transition service
+- `under_intake_check`, `eligible`, `rejected`
+- required reason handling for return/reject
+- timeline rendering on presenter and admin detail pages
+
+The point of this phase was to stop treating `status` as a single mutable field and start treating it as an auditable workflow.
+
+### Architecture decision
+
+Status tracking is now split into two layers:
+
+- current state on `submissions.status`
+- immutable event history in `submission_status_history`
+
+That matters because:
+
+- current state tells the app what the submission is now
+- history tells staff and presenters how it got there
+
+Without both layers, Negadras would not be defensible once intake decisions start happening.
+
+### Files and why they changed
+
+#### [app/SubmissionStatus.php](/Users/yonassayfu/Herd/Negadras/app/SubmissionStatus.php)
+
+Before:
+
+```diff
+- case Draft = 'draft'
+- case Submitted = 'submitted'
+- case IncompleteReturned = 'incomplete_returned'
+- case Eligible = 'eligible'
+- case ScreeningRejected = 'screening_rejected'
+```
+
+After:
+
+```diff
++ case UnderIntakeCheck = 'under_intake_check'
++ case Rejected = 'rejected'
+- case ScreeningRejected = 'screening_rejected'
+```
+
+Why:
+
+- `under_intake_check` is a real operational state, not just a label
+- `rejected` is the cleaner domain term for Phase 1 than `screening_rejected`
+- the enum now matches the tracker language directly
+
+This also changed:
+
+```diff
++ label()
++ tone()
++ allowsPresenterEdits()
+```
+
+So the UI badge tone and presenter edit lock rules now understand the new workflow states.
+
+#### [database/migrations/2026_03_19_064336_create_submission_status_histories_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_064336_create_submission_status_histories_table.php)
+
+Before:
+
+```diff
+- empty artisan stub with timestamps()
+```
+
+After:
+
+```diff
++ submission_id
++ from_status nullable
++ to_status
++ changed_by nullable
++ reason nullable
++ created_at
+```
+
+Why:
+
+- every transition needs actor, reason, and timestamp
+- `from_status` is nullable because the initial event has no previous state
+
+This is not a generic audit-log substitute. It is a submission-specific workflow ledger.
+
+#### [database/migrations/2026_03_19_064916_migrate_submission_screening_rejected_status.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_064916_migrate_submission_screening_rejected_status.php)
+
+Why this exists:
+
+- earlier development used `screening_rejected`
+- the enum now uses `rejected`
+- old rows would break enum casting if left unchanged
+
+So this migration normalizes old `submissions.status` values safely.
+
+#### [app/Models/SubmissionStatusHistory.php](/Users/yonassayfu/Herd/Negadras/app/Models/SubmissionStatusHistory.php)
+
+What changed:
+
+```diff
++ protected $table = 'submission_status_history'
++ public const UPDATED_AT = null
++ casts from_status/to_status to SubmissionStatus
++ submission() relation
++ actor() relation
+```
+
+Why:
+
+- this model should read like a domain event record, not a generic note
+- enum casts keep timeline rendering consistent with the current submission status system
+
+#### [app/Models/Submission.php](/Users/yonassayfu/Herd/Negadras/app/Models/Submission.php)
+
+What changed:
+
+```diff
++ statusHistory(): HasMany
++ scopeUnderIntakeCheck()
+```
+
+Why:
+
+- the model now exposes the workflow ledger directly
+- the detail pages and future intake dashboards need timeline access without raw queries
+
+#### [app/Support/SubmissionStatusTransitionService.php](/Users/yonassayfu/Herd/Negadras/app/Support/SubmissionStatusTransitionService.php)
+
+This is the core of the phase.
+
+Before:
+
+```diff
+- empty artisan class
+```
+
+After:
+
+```diff
++ private const TRANSITIONS = [...]
++ availableStaffTransitions()
++ transition()
++ recordInitialStatus()
++ requiresReason()
+```
+
+Why:
+
+- the transition map is now centralized
+- controllers no longer invent allowed moves ad hoc
+- return and reject reason enforcement lives in one place
+
+Important transition rules now encoded:
+
+```diff
++ draft -> submitted
++ submitted -> under_intake_check | incomplete_returned | eligible | rejected
++ under_intake_check -> incomplete_returned | eligible | rejected
++ incomplete_returned -> submitted
+```
+
+That is the first real Negadras workflow engine.
+
+#### [app/Http/Requests/TransitionSubmissionStatusRequest.php](/Users/yonassayfu/Herd/Negadras/app/Http/Requests/TransitionSubmissionStatusRequest.php)
+
+Why this file matters:
+
+- admin/staff status updates need dedicated validation, not inline controller checks
+- allowed transitions are pulled from the service
+- return/reject requires a reason
+
+The key part is:
+
+```diff
++ 'status' must be one of the available transitions for this submission
++ 'reason' is enforced by custom closure logic for return/reject
+```
+
+This keeps invalid or context-free transitions out of the system.
+
+#### [app/Http/Controllers/SubmissionController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/SubmissionController.php)
+
+This file changed in two important ways.
+
+1. Presenter create/update now logs workflow history.
+
+```diff
++ recordInitialStatus() on creation
++ transition(... Submitted ...) on final submit
+```
+
+2. Presenter detail payload now includes timeline data.
+
+```diff
++ latestStatusReason
++ statusTimeline
++ eager load statusHistory.actor
+```
+
+Why:
+
+- presenter actions must contribute to the same status ledger as staff actions
+- the presenter detail page should explain why a submission was returned, not force the user to guess
+
+#### [app/Http/Controllers/Admin/SubmissionManagementController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/SubmissionManagementController.php)
+
+This is where staff transitions became operational.
+
+What changed:
+
+```diff
++ transition() action
++ availableTransitions in Inertia props
++ canTransitionStatus in Inertia props
++ latestStatusReason
++ statusTimeline
+```
+
+Why:
+
+- staff needs an explicit intake control surface
+- the admin detail page is now the first real operational review screen
+
+The controller now does two things:
+
+- renders the current timeline
+- applies the next valid state through the transition service
+
+#### [database/seeders/RolePermissionSeeder.php](/Users/yonassayfu/Herd/Negadras/database/seeders/RolePermissionSeeder.php)
+
+What changed:
+
+```diff
++ Manager now receives submissions.update
+```
+
+Why:
+
+- Phase 1 tracker expects operational staff to move intake statuses
+- without this, Manager could inspect submissions but not act on them
+
+This is a real business permission change, not just a UI tweak.
+
+#### [routes/web.php](/Users/yonassayfu/Herd/Negadras/routes/web.php)
+
+What changed:
+
+```diff
++ POST admin/submissions/{submission}/status
++ name: admin-submissions.transition
+```
+
+Why:
+
+- the workflow needed a dedicated staff transition route
+- route-level permission middleware now protects that action before controller code runs
+
+#### [resources/js/types/admin.ts](/Users/yonassayfu/Herd/Negadras/resources/js/types/admin.ts)
+
+What changed:
+
+```diff
++ latestStatusReason on ManagedSubmission
++ statusTimeline on ManagedSubmission
++ SubmissionStatusTimelineEntry type
++ SubmissionTransitionOption type
+```
+
+Why:
+
+- the admin and presenter pages now consume richer workflow data
+- explicit types keep the controller payload and Vue render layer synchronized
+
+#### [resources/js/pages/submissions/Show.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/submissions/Show.vue)
+
+What changed:
+
+```diff
++ latest status note block
++ status timeline panel
+```
+
+Why:
+
+- when a submission is returned, the presenter needs the operational reason in the main detail view
+- this is the first user-facing explanation layer for Negadras intake decisions
+
+#### [resources/js/pages/admin/Submissions/Show.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/Submissions/Show.vue)
+
+This was the main frontend operational change.
+
+What changed:
+
+```diff
++ status transition form
++ next-status select
++ reason textarea
++ timeline panel
++ latest status note block
+```
+
+Why:
+
+- staff needs to move submissions through intake without leaving the detail page
+- timeline and action controls belong together in the same review surface
+
+Important UX rule now implemented:
+
+- return/reject prompts for a reason
+- timeline immediately shows the note after transition
+
+#### [tests/Feature/SubmissionStatusTrackingTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/SubmissionStatusTrackingTest.php)
+
+This is the test file that proves the phase works.
+
+It now covers:
+
+```diff
++ presenter status history on final submit
++ manager transition flow
++ required reason for incomplete_returned
++ presenter/admin timeline payloads
+```
+
+Why:
+
+- status transitions are business-critical
+- this phase would be unsafe without tests around allowed moves and reason handling
+
+### Laravel takeaways from this phase
+
+1. Current state and history should be modeled separately.
+2. Transition rules belong in a service, not copied across controllers.
+3. Reasons for workflow decisions should be validated at the request boundary and recorded in the history layer.
+4. Policies and permission middleware still matter even when the transition map is correct.
+5. Inertia detail pages become much more useful when they carry operational history, not only current values.
+
+### Practical Negadras result
+
+At the end of this phase:
+
+- presenters still submit drafts/finals normally
+- staff can move submissions to `under_intake_check`
+- staff can return incomplete submissions with a reason
+- staff can mark submissions eligible
+- staff can reject submissions with a reason
+- presenter and admin detail pages now show the status timeline
+- the latest return/reject note is visible instead of being buried
+
+What is still intentionally not done in this phase:
+
+- intake checklist scoring
+- batch transition tools on the submissions list
+- reviewer assignment after intake
+- secretary-specific role split
+
+Those belong to later intake-management and operational workflow phases.

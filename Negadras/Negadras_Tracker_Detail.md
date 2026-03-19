@@ -246,34 +246,34 @@ This part is important because later phases will need revision history.
 
 ### G1. Status History
 
-* [ ] Create `submission_status_history` migration
-* [ ] Add fields: `submission_id`, `from_status`, `to_status`, `changed_by`, `reason`, `created_at`
-* [ ] Create SubmissionStatusHistory model
-* [ ] Create service to update submission status consistently
-* [ ] Log every status change automatically
-* [ ] Show submission timeline/history on detail page
+* [x] Create `submission_status_history` migration
+* [x] Add fields: `submission_id`, `from_status`, `to_status`, `changed_by`, `reason`, `created_at`
+* [x] Create SubmissionStatusHistory model
+* [x] Create service to update submission status consistently
+* [x] Log every status change automatically
+* [x] Show submission timeline/history on detail page
 
 ### G2. Phase 1 Statuses to Support
 
 Only implement these now:
 
 * [ ] `draft`
-* [ ] `submitted`
-* [ ] `under_intake_check`
-* [ ] `incomplete_returned`
-* [ ] `eligible`
-* [ ] `rejected`
+* [x] `submitted`
+* [x] `under_intake_check`
+* [x] `incomplete_returned`
+* [x] `eligible`
+* [x] `rejected`
 
 Do not add later complex statuses yet.
 
 ### G3. Status Actions
 
-* [ ] Presenter can move draft to submitted
-* [ ] Secretary/admin can move submitted to under intake check
-* [ ] Secretary/admin can return incomplete submission
-* [ ] Secretary/admin can mark eligible
-* [ ] Secretary/admin can reject with reason
-* [ ] Show reason when returned/rejected
+* [x] Presenter can move draft to submitted
+* [x] Secretary/admin can move submitted to under intake check
+* [x] Secretary/admin can return incomplete submission
+* [x] Secretary/admin can mark eligible
+* [x] Secretary/admin can reject with reason
+* [x] Show reason when returned/rejected
 
 ---
 

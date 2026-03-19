@@ -11,10 +11,12 @@ use App\Models\Season;
 use App\Models\Stage;
 use App\Models\Submission;
 use App\Models\SubmissionFile;
+use App\Models\SubmissionStatusHistory;
 use App\SubmissionStatus;
 use App\Support\ActivityLogger;
 use App\Support\SubmissionFileBinder;
 use App\Support\SubmissionFileRegistry;
+use App\Support\SubmissionStatusTransitionService;
 use App\Support\SubmissionVersionSnapshotter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -69,6 +71,7 @@ class SubmissionController extends Controller
         StoreSubmissionRequest $request,
         SubmissionVersionSnapshotter $snapshotter,
         SubmissionFileBinder $fileBinder,
+        SubmissionStatusTransitionService $statusTransitions,
     ): RedirectResponse {
         $this->authorize('create', Submission::class);
 
@@ -83,6 +86,13 @@ class SubmissionController extends Controller
             'status' => $intent === 'submit' ? SubmissionStatus::Submitted : SubmissionStatus::Draft,
             'submitted_at' => $intent === 'submit' ? now() : null,
         ]);
+
+        $statusTransitions->recordInitialStatus(
+            submission: $submission,
+            toStatus: $submission->status,
+            actor: $request->user(),
+            reason: $intent === 'submit' ? 'Initial final submission.' : 'Draft created.',
+        );
 
         if ($intent === 'submit') {
             $version = $snapshotter->createSnapshot(
@@ -127,6 +137,7 @@ class SubmissionController extends Controller
             'versions.creator:id,name',
             'files.version:id,version_no',
             'files.uploadedBy:id,name',
+            'statusHistory.actor:id,name',
         ]);
 
         return Inertia::render('submissions/Show', [
@@ -150,6 +161,7 @@ class SubmissionController extends Controller
                 'versions.creator:id,name',
                 'files.version:id,version_no',
                 'files.uploadedBy:id,name',
+                'statusHistory.actor:id,name',
             ])),
             'seasonOptions' => $this->seasonOptions(),
             'stageOptions' => $this->stageOptions(),
@@ -164,28 +176,33 @@ class SubmissionController extends Controller
         Submission $submission,
         SubmissionVersionSnapshotter $snapshotter,
         SubmissionFileBinder $fileBinder,
+        SubmissionStatusTransitionService $statusTransitions,
     ): RedirectResponse {
         $this->authorize('update', $submission);
 
         $intent = $request->validated('intent');
-        $wasPreviouslySubmitted = $submission->status === SubmissionStatus::Submitted;
         $wasReturned = $submission->status === SubmissionStatus::IncompleteReturned;
 
         $submission->update([
             ...$request->safe()->except('intent'),
-            'status' => $intent === 'submit'
-                ? SubmissionStatus::Submitted
-                : ($submission->status === SubmissionStatus::IncompleteReturned ? SubmissionStatus::IncompleteReturned : SubmissionStatus::Draft),
-            'submitted_at' => $intent === 'submit' ? now() : $submission->submitted_at,
         ]);
 
         if ($intent === 'submit') {
+            $statusTransitions->transition(
+                submission: $submission,
+                toStatus: SubmissionStatus::Submitted,
+                actor: $request->user(),
+                reason: $wasReturned
+                    ? 'Presenter resubmitted after correction.'
+                    : 'Presenter finalized the submission draft.',
+            );
+
             $version = $snapshotter->createSnapshot(
                 submission: $submission->fresh(),
                 actor: $request->user(),
                 changeNote: $wasReturned
                     ? 'Presenter resubmitted after correction.'
-                    : ($wasPreviouslySubmitted ? 'Presenter submitted a new revision.' : 'Presenter finalized the submission draft.'),
+                    : 'Presenter finalized the submission draft.',
             );
 
             $fileBinder->bindDraftFilesToVersion($submission->fresh(), $version);
@@ -337,6 +354,7 @@ class SubmissionController extends Controller
             'isPublicAfterApproval' => $submission->is_public_after_approval,
             'currentVersionNumber' => $submission->currentVersion?->version_no,
             'versionCount' => $submission->versions->count(),
+            'latestStatusReason' => $submission->statusHistory->first()?->reason,
             'draftFiles' => $submission->files
                 ->whereNull('submission_version_id')
                 ->map(fn (SubmissionFile $file): array => $this->submissionFileSummary($file))
@@ -359,6 +377,10 @@ class SubmissionController extends Controller
                     'snapshotTitle' => $version->snapshot_json['title'] ?? $submission->title,
                     'snapshotStatus' => Str::of($version->snapshot_json['status'] ?? 'draft')->replace('_', ' ')->title()->toString(),
                 ])
+                ->values()
+                ->all(),
+            'statusTimeline' => $submission->statusHistory
+                ->map(fn (SubmissionStatusHistory $entry): array => $this->statusTimelineEntry($entry))
                 ->values()
                 ->all(),
         ];
@@ -401,6 +423,24 @@ class SubmissionController extends Controller
             'uploadedAt' => $file->uploaded_at?->toDateTimeString(),
             'uploadedBy' => $file->uploadedBy?->name,
             'versionNumber' => $file->version?->version_no,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function statusTimelineEntry(SubmissionStatusHistory $entry): array
+    {
+        return [
+            'id' => $entry->id,
+            'fromStatus' => $entry->from_status?->value,
+            'fromStatusLabel' => $entry->from_status?->label(),
+            'toStatus' => $entry->to_status->value,
+            'toStatusLabel' => $entry->to_status->label(),
+            'toStatusTone' => $entry->to_status->tone(),
+            'reason' => $entry->reason,
+            'changedAt' => $entry->created_at?->toDateTimeString(),
+            'changedBy' => $entry->actor?->name,
         ];
     }
 }

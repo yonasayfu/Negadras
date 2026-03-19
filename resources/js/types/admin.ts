@@ -162,9 +162,11 @@ export type ManagedSubmission = {
     isPublicAfterApproval?: boolean;
     currentVersionNumber?: number | null;
     versionCount?: number;
+    latestStatusReason?: string | null;
     draftFiles?: ManagedSubmissionFile[];
     currentVersionFiles?: ManagedSubmissionFile[];
     versionHistory?: SubmissionVersionEntry[];
+    statusTimeline?: SubmissionStatusTimelineEntry[];
 };
 
 export type SubmissionVersionEntry = {
@@ -202,6 +204,24 @@ export type ManagedSubmissionFile = {
     uploadedAt: string | null;
     uploadedBy: string | null;
     versionNumber: number | null;
+};
+
+export type SubmissionStatusTimelineEntry = {
+    id: number;
+    fromStatus: string | null;
+    fromStatusLabel: string | null;
+    toStatus: string;
+    toStatusLabel: string;
+    toStatusTone: string;
+    reason: string | null;
+    changedAt: string | null;
+    changedBy: string | null;
+};
+
+export type SubmissionTransitionOption = {
+    value: string;
+    label: string;
+    requiresReason: boolean;
 };
 
 export type SubmissionStageOption = {

@@ -129,6 +129,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:submissions.view')
         ->name('admin-submissions.show');
 
+    Route::post('admin/submissions/{submission}/status', [SubmissionManagementController::class, 'transition'])
+        ->middleware('permission:submissions.update')
+        ->name('admin-submissions.transition');
+
     Route::get('admin/seasons', [SeasonManagementController::class, 'index'])
         ->middleware('permission:seasons.view')
         ->name('seasons.index');

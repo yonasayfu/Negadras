@@ -100,6 +100,7 @@ class RolePermissionSeeder extends Seeder
                 'industries.create',
                 'industries.update',
                 'submissions.view',
+                'submissions.update',
                 'pages.view',
                 'pages.create',
                 'pages.update',

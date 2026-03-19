@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Models\Applicant;
+use App\Models\ArchiveRecord;
+use App\Models\AwardRecord;
 use App\Models\CompetitionSession;
 use App\Models\ConflictOfInterestDeclaration;
 use App\Models\DashboardProjectionSession;
@@ -14,6 +16,9 @@ use App\Models\Note;
 use App\Models\Organization;
 use App\Models\Page;
 use App\Models\Panel;
+use App\Models\PresenterFeedbackPacket;
+use App\Models\PublicShowcaseEntry;
+use App\Models\RankingSnapshot;
 use App\Models\ReviewDecision;
 use App\Models\Reviewer;
 use App\Models\ReviewerAssignment;
@@ -30,6 +35,8 @@ use App\Models\SubmissionFile;
 use App\Models\TechnicalReview;
 use App\Models\User;
 use App\Policies\ApplicantPolicy;
+use App\Policies\ArchiveRecordPolicy;
+use App\Policies\AwardRecordPolicy;
 use App\Policies\CompetitionSessionPolicy;
 use App\Policies\ConflictOfInterestDeclarationPolicy;
 use App\Policies\DashboardProjectionSessionPolicy;
@@ -41,6 +48,9 @@ use App\Policies\NotePolicy;
 use App\Policies\OrganizationPolicy;
 use App\Policies\PagePolicy;
 use App\Policies\PanelPolicy;
+use App\Policies\PresenterFeedbackPacketPolicy;
+use App\Policies\PublicShowcaseEntryPolicy;
+use App\Policies\RankingSnapshotPolicy;
 use App\Policies\ReviewDecisionPolicy;
 use App\Policies\ReviewerAssignmentPolicy;
 use App\Policies\ReviewerPolicy;
@@ -96,6 +106,8 @@ class AppServiceProvider extends ServiceProvider
 
         Gate::policy(User::class, UserPolicy::class);
         Gate::policy(Applicant::class, ApplicantPolicy::class);
+        Gate::policy(ArchiveRecord::class, ArchiveRecordPolicy::class);
+        Gate::policy(AwardRecord::class, AwardRecordPolicy::class);
         Gate::policy(ConflictOfInterestDeclaration::class, ConflictOfInterestDeclarationPolicy::class);
         Gate::policy(CompetitionSession::class, CompetitionSessionPolicy::class);
         Gate::policy(DashboardProjectionSession::class, DashboardProjectionSessionPolicy::class);
@@ -111,6 +123,9 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Note::class, NotePolicy::class);
         Gate::policy(Organization::class, OrganizationPolicy::class);
         Gate::policy(Rubric::class, RubricPolicy::class);
+        Gate::policy(PresenterFeedbackPacket::class, PresenterFeedbackPacketPolicy::class);
+        Gate::policy(PublicShowcaseEntry::class, PublicShowcaseEntryPolicy::class);
+        Gate::policy(RankingSnapshot::class, RankingSnapshotPolicy::class);
         Gate::policy(Season::class, SeasonPolicy::class);
         Gate::policy(SessionPresenter::class, SessionPresenterPolicy::class);
         Gate::policy(ScreeningReview::class, ScreeningReviewPolicy::class);

@@ -5559,3 +5559,181 @@ What is intentionally still outside this phase:
 - live countdown timer orchestration
 - public comments/highlights reveal rules
 - post-session ranking, awards, and archive publication
+
+---
+
+## Entry 015: Phase 5 - Feedback Packets, Ranking, Awards, and Archive
+
+### What this phase needed to solve
+
+After live judging and final scoring, Negadras still needed a post-decision layer:
+
+- convert panel scoring into auditable ranking snapshots
+- allow controlled award recording
+- transform selected review content into presenter-safe feedback packets
+- freeze outcomes into archive records
+- expose approved winners and finalists publicly without leaking internal review state
+
+This phase implemented that full post-judging flow.
+
+### Main backend files
+
+#### Ranking and awards domain
+
+- [app/Models/RankingSnapshot.php](/Users/yonassayfu/Herd/Negadras/app/Models/RankingSnapshot.php)
+- [app/Models/AwardRecord.php](/Users/yonassayfu/Herd/Negadras/app/Models/AwardRecord.php)
+- [app/Support/RankingSnapshotBuilder.php](/Users/yonassayfu/Herd/Negadras/app/Support/RankingSnapshotBuilder.php)
+- [app/Http/Controllers/Admin/RankingManagementController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/RankingManagementController.php)
+- [app/Http/Controllers/Admin/AwardManagementController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/AwardManagementController.php)
+
+Core design:
+
+```php
+return RankingSnapshot::query()->updateOrCreate(
+    [
+        'stage_id' => $stage->id,
+        'competition_session_id' => $competitionSession?->id,
+        'submission_id' => $row['submission']->id,
+    ],
+    [
+        'season_id' => $row['submission']->season_id,
+        'aggregate_score' => $row['aggregateScore'],
+        'rank_position' => $index + 1,
+        'tie_break_reason_optional' => $this->tieBreakReason($index, $row, $scoredRows),
+    ],
+);
+```
+
+Why this structure:
+
+- rankings are snapshots, not live calculated every page load
+- each snapshot is tied to a stage and optional live session
+- the system can preserve tie-break reasoning and later manual override notes
+
+The important business decision here is that ranking is generated from locked scoring outcomes, then stored. That makes awards, archive, and public publication stable even if staff reopen other parts of the workflow later.
+
+#### Feedback packet layer
+
+- [app/Models/PresenterFeedbackPacket.php](/Users/yonassayfu/Herd/Negadras/app/Models/PresenterFeedbackPacket.php)
+- [app/Support/FeedbackPacketBuilder.php](/Users/yonassayfu/Herd/Negadras/app/Support/FeedbackPacketBuilder.php)
+- [app/Http/Controllers/Admin/FeedbackPacketManagementController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/FeedbackPacketManagementController.php)
+- [app/Http/Controllers/PresenterFeedbackController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/PresenterFeedbackController.php)
+
+Important filtering rule:
+
+```php
+$presenterVisibleComments = $submission->judgeComments
+    ->where('comment_type', JudgeCommentType::PresenterVisible)
+    ->where('is_archived', false)
+    ->pluck('content');
+```
+
+Why this matters:
+
+- judges and reviewers can write internal or private notes
+- only explicitly presenter-visible comments may cross into the presenter packet
+- this prevents accidental leakage of internal deliberation
+
+The packet builder also pulls the latest score summary and decision context, but only into a controlled, reviewable packet. Staff can still edit the packet before sending it.
+
+#### Archive and public showcase
+
+- [app/Models/ArchiveRecord.php](/Users/yonassayfu/Herd/Negadras/app/Models/ArchiveRecord.php)
+- [app/Models/SessionHighlight.php](/Users/yonassayfu/Herd/Negadras/app/Models/SessionHighlight.php)
+- [app/Models/PublicShowcaseEntry.php](/Users/yonassayfu/Herd/Negadras/app/Models/PublicShowcaseEntry.php)
+- [app/Support/ArchivePublisher.php](/Users/yonassayfu/Herd/Negadras/app/Support/ArchivePublisher.php)
+- [app/Http/Controllers/Admin/ArchiveManagementController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/ArchiveManagementController.php)
+- [app/Http/Controllers/PublicShowcaseController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/PublicShowcaseController.php)
+
+Important correction made during implementation:
+
+```diff
+- archive_status was validated but ignored during create
++ archive_status is now passed into ArchivePublisher and persisted directly
+```
+
+Why that correction mattered:
+
+- archive workflow would have looked configurable in the UI
+- but the stored state would still be derived indirectly
+- that mismatch is dangerous in operations code because staff think they are controlling publication while the system is silently overriding them
+
+The archive layer now does two separate jobs:
+
+1. preserve the official record
+2. optionally expose a curated public showcase entry
+
+That split is important. Not every archived record should become public, and public storytelling data should not force changes to the internal record.
+
+### Main frontend files
+
+- [resources/js/pages/admin/Rankings/Index.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/Rankings/Index.vue)
+- [resources/js/pages/admin/Awards/Index.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/Awards/Index.vue)
+- [resources/js/pages/admin/FeedbackPackets/Index.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/FeedbackPackets/Index.vue)
+- [resources/js/pages/admin/Archive/Index.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/Archive/Index.vue)
+- [resources/js/pages/feedback/Index.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/feedback/Index.vue)
+- [resources/js/pages/feedback/Show.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/feedback/Show.vue)
+- [resources/js/pages/public/Showcase/Index.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/public/Showcase/Index.vue)
+- [resources/js/pages/public/Showcase/Show.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/public/Showcase/Show.vue)
+
+How the UI is intentionally split:
+
+- admin pages manage official operations
+- presenter pages only read released packets
+- public pages only read approved showcase data
+
+That prevents the usual mistake of reusing admin payloads on public screens.
+
+### Route and permission layer
+
+- [routes/web.php](/Users/yonassayfu/Herd/Negadras/routes/web.php)
+- [database/seeders/RolePermissionSeeder.php](/Users/yonassayfu/Herd/Negadras/database/seeders/RolePermissionSeeder.php)
+- [app/Providers/AppServiceProvider.php](/Users/yonassayfu/Herd/Negadras/app/Providers/AppServiceProvider.php)
+- [resources/js/navigation/app.ts](/Users/yonassayfu/Herd/Negadras/resources/js/navigation/app.ts)
+
+New permission surface:
+
+```php
+'rankings.view',
+'rankings.update',
+'awards.view',
+'awards.update',
+'feedback-packets.view',
+'feedback-packets.update',
+'archive.view',
+'archive.update',
+```
+
+Why this matters:
+
+- post-judging operations are not the same as screening or live moderation
+- archive publication and presenter feedback are business-sensitive actions
+- they need their own access boundary instead of piggybacking on a generic submission permission
+
+### Tests added
+
+- [tests/Feature/RankingAndAwardsFlowTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/RankingAndAwardsFlowTest.php)
+- [tests/Feature/PresenterFeedbackPacketTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/PresenterFeedbackPacketTest.php)
+- [tests/Feature/ArchiveShowcaseFlowTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/ArchiveShowcaseFlowTest.php)
+
+What they prove:
+
+- managers can generate rankings and record awards
+- presenter packets only become readable after the release action
+- public showcase pages only read published archive/showcase records
+
+### Important practical lesson from this phase
+
+The most important architectural lesson is this:
+
+- judging output should not jump directly to the public site
+
+There should always be a controlled post-judging layer:
+
+1. ranking
+2. award
+3. feedback packet
+4. archive record
+5. public showcase
+
+That extra layer is what makes the system safe for a real competition program instead of only technically functional.

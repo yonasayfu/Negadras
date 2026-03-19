@@ -118,6 +118,13 @@ Current progress:
 - bulk reviewer assignment completed
 - structured screening eligibility checklist completed
 - manager reopen flow for submitted screening and technical reviews completed
+- ranking snapshot generation completed
+- tie-break logging and manual override support completed
+- award management completed
+- presenter feedback packet generation and delivery completed
+- archive record generation completed
+- session highlight management completed
+- public showcase pages completed
 - review decisions persistence completed
 - shortlist records, approval flow, and shortlist export placeholder completed
 - overdue review expiration and in-app overdue notifications completed
@@ -166,7 +173,24 @@ Current progress:
 - winners/finalists pages
 - archive browsing
 
-### Phase N5: AI Advisory Layer
+Current progress:
+
+- approved showcase pages completed
+- winner and archive showcase detail pages completed
+
+### Phase N5: Feedback, Ranking, Awards & Archive
+
+- ranking snapshots
+- awards
+- presenter feedback packets
+- archive records
+- public showcase publication
+
+Current progress:
+
+- completed
+
+### Phase N6: AI Advisory Layer
 
 - submission summarization
 - transcript extraction
@@ -175,7 +199,7 @@ Current progress:
 
 AI must remain advisory only.
 
-### Phase N6: Hardening
+### Phase N7: Hardening
 
 - audit tightening
 - permission review

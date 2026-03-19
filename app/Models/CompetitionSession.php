@@ -92,4 +92,9 @@ class CompetitionSession extends Model
     {
         return $this->hasMany(SessionMedium::class)->orderBy('display_order');
     }
+
+    public function highlights(): HasMany
+    {
+        return $this->hasMany(SessionHighlight::class)->orderBy('display_order');
+    }
 }

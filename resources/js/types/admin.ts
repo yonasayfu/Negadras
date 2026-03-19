@@ -325,6 +325,104 @@ export type ManagedShortlistRecord = {
     createdAt: string | null;
 };
 
+export type ManagedRankingSnapshot = {
+    id: number;
+    submissionId: number;
+    submissionTitle: string | null;
+    applicantName: string | null;
+    organizationName: string | null;
+    seasonId: number | null;
+    seasonName: string | null;
+    stageId: number | null;
+    stageName: string | null;
+    competitionSessionId: number | null;
+    competitionSessionName: string | null;
+    aggregateScore: number;
+    rankPosition: number;
+    tieBreakReasonOptional: string | null;
+    overrideReasonOptional: string | null;
+    finalizedAt: string | null;
+};
+
+export type ManagedAwardRecord = {
+    id: number;
+    submissionId: number;
+    submissionTitle: string | null;
+    applicantName: string | null;
+    organizationName: string | null;
+    seasonName: string | null;
+    awardType: string;
+    awardTypeLabel: string;
+    rankPosition: number | null;
+    prizeValueOptional: number | null;
+    notes: string | null;
+    grantedAt: string | null;
+};
+
+export type ManagedPresenterFeedbackPacket = {
+    id: number;
+    submissionId: number;
+    submissionTitle: string | null;
+    applicantName: string | null;
+    organizationName: string | null;
+    stageName: string | null;
+    summary: string;
+    strengths: string | null;
+    improvementAreas: string | null;
+    nextStepGuidance: string | null;
+    visibilityStatus: string;
+    visibilityStatusLabel: string;
+    scoreSummaryOptional: number | null;
+    sentAtOptional: string | null;
+};
+
+export type ManagedArchiveRecord = {
+    id: number;
+    submissionId: number;
+    submissionTitle: string | null;
+    applicantName: string | null;
+    organizationName: string | null;
+    seasonName: string | null;
+    stageName: string | null;
+    sessionName: string | null;
+    archiveStatus: string;
+    archiveStatusLabel: string;
+    archiveStatusTone: string;
+    publicVisibility: string;
+    publicVisibilityLabel: string;
+    archivedAt: string | null;
+    notes: string | null;
+    showcase: {
+        title: string;
+        subtitle: string | null;
+        summary: string;
+        winnerLabel: string | null;
+    } | null;
+};
+
+export type ManagedSessionHighlight = {
+    id: number;
+    competitionSessionId: number;
+    competitionSessionName: string | null;
+    title: string;
+    summary: string;
+    quoteOptional: string | null;
+    quoteSourceOptional: string | null;
+    displayOrder: number;
+    isPublic: boolean;
+};
+
+export type ManagedPublicShowcaseEntry = {
+    slug: string;
+    title: string;
+    subtitle: string | null;
+    summary: string;
+    winnerLabel: string | null;
+    seasonName: string | null;
+    industryName: string | null;
+    presenterName: string | null;
+};
+
 export type ManagedReviewerAssignment = {
     id: number;
     assignmentType?: string;

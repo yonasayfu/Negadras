@@ -1251,18 +1251,18 @@ Add:
 
 ### A1. Ranking Snapshot Table
 
-* [ ] Create `ranking_snapshots` migration
-* [ ] Add fields: `season_id`, `stage_id`, `session_id_optional`, `submission_id`, `aggregate_score`, `rank_position`, `tie_break_reason_optional`, `finalized_at`
-* [ ] Create model
-* [ ] Build ranking calculation service
-* [ ] Add stage-specific ranking generation
-* [ ] Add ranking review page for manager/admin
+* [x] Create `ranking_snapshots` migration
+* [x] Add fields: `season_id`, `stage_id`, `session_id_optional`, `submission_id`, `aggregate_score`, `rank_position`, `tie_break_reason_optional`, `finalized_at`
+* [x] Create model
+* [x] Build ranking calculation service
+* [x] Add stage-specific ranking generation
+* [x] Add ranking review page for manager/admin
 
 ### A2. Tie-Break Rules
 
-* [ ] Implement tie-break rule service
-* [ ] Log tie-break reason
-* [ ] Allow manager final override with reason
+* [x] Implement tie-break rule service
+* [x] Log tie-break reason
+* [x] Allow manager final override with reason
 
 ---
 
@@ -1270,11 +1270,11 @@ Add:
 
 ### B1. Award Records
 
-* [ ] Create `award_records` migration
-* [ ] Add fields: `season_id`, `submission_id`, `award_type`, `rank_position`, `prize_value_optional`, `notes`
-* [ ] Create model
-* [ ] Build award creation/finalization page
-* [ ] Link awards to public showcase
+* [x] Create `award_records` migration
+* [x] Add fields: `season_id`, `submission_id`, `award_type`, `rank_position`, `prize_value_optional`, `notes`
+* [x] Create model
+* [x] Build award creation/finalization page
+* [x] Link awards to public showcase
 
 ---
 
@@ -1282,14 +1282,14 @@ Add:
 
 ### C1. Feedback Table
 
-* [ ] Create `presenter_feedback_packets` migration
-* [ ] Add fields: `submission_id`, `stage_id`, `summary`, `strengths`, `improvement_areas`, `next_step_guidance`, `generated_by`, `visibility_status`, `sent_at_optional`
-* [ ] Create model
-* [ ] Build feedback packet generation service
-* [ ] Pull in presenter-visible comments only
-* [ ] Pull in approved score summary if policy allows
-* [ ] Build feedback detail page for presenter
-* [ ] Add send notification action
+* [x] Create `presenter_feedback_packets` migration
+* [x] Add fields: `submission_id`, `stage_id`, `summary`, `strengths`, `improvement_areas`, `next_step_guidance`, `generated_by`, `visibility_status`, `sent_at_optional`
+* [x] Create model
+* [x] Build feedback packet generation service
+* [x] Pull in presenter-visible comments only
+* [x] Pull in approved score summary if policy allows
+* [x] Build feedback detail page for presenter
+* [x] Add send notification action
 
 ---
 
@@ -1297,19 +1297,19 @@ Add:
 
 ### D1. Archive Records
 
-* [ ] Create `archive_records` migration
-* [ ] Add fields: `submission_id`, `season_id`, `stage_id`, `session_id_optional`, `archived_at`, `archive_status`, `public_visibility`
-* [ ] Create model
-* [ ] Build archive generation action
-* [ ] Link scores/comments/session metadata
-* [ ] Create admin archive view
+* [x] Create `archive_records` migration
+* [x] Add fields: `submission_id`, `season_id`, `stage_id`, `session_id_optional`, `archived_at`, `archive_status`, `public_visibility`
+* [x] Create model
+* [x] Build archive generation action
+* [x] Link scores/comments/session metadata
+* [x] Create admin archive view
 
 ### D2. Session Highlights
 
-* [ ] Create `session_highlights` migration
-* [ ] Add highlight notes
-* [ ] Add summary blocks
-* [ ] Attach approved quotes if needed
+* [x] Create `session_highlights` migration
+* [x] Add highlight notes
+* [x] Add summary blocks
+* [x] Attach approved quotes if needed
 
 ---
 
@@ -1317,34 +1317,34 @@ Add:
 
 ### E1. Showcase Entries
 
-* [ ] Create `public_showcase_entries` migration
-* [ ] Add fields for title, subtitle, visibility, image, summary
-* [ ] Create model
-* [ ] Build public showcase page
-* [ ] Filter by season/industry/winner type
-* [ ] Add winner pages
-* [ ] Add archive detail pages
+* [x] Create `public_showcase_entries` migration
+* [x] Add fields for title, subtitle, visibility, image, summary
+* [x] Create model
+* [x] Build public showcase page
+* [x] Filter by season/industry/winner type
+* [x] Add winner pages
+* [x] Add archive detail pages
 
 ---
 
 ## F. Testing
 
-* [ ] ranking calculation works
-* [ ] tie-break logging works
-* [ ] feedback packet only includes allowed content
-* [ ] archive records are created
-* [ ] public visibility rules are respected
+* [x] ranking calculation works
+* [x] tie-break logging works
+* [x] feedback packet only includes allowed content
+* [x] archive records are created
+* [x] public visibility rules are respected
 
 ---
 
 ## Phase 5 Done Definition
 
-* [ ] rankings can be finalized
-* [ ] awards can be recorded
-* [ ] presenters can receive structured feedback
-* [ ] archive records exist
-* [ ] public showcase pages work
-* [ ] tests pass
+* [x] rankings can be finalized
+* [x] awards can be recorded
+* [x] presenters can receive structured feedback
+* [x] archive records exist
+* [x] public showcase pages work
+* [x] tests pass
 
 ---
 
@@ -1620,7 +1620,7 @@ Here is the simplest overall order:
 * [x] Phase 2 — Screening & Reviewer Workflow
 * [x] Phase 3 — Judge, Panel & Rubric Engine
 * [x] Phase 4 — Live Session & Real-Time Dashboard
-* [ ] Phase 5 — Feedback, Ranking, Awards & Archive
+* [x] Phase 5 — Feedback, Ranking, Awards & Archive
 * [ ] Phase 6 — Reporting, Exports & Governance
 * [ ] Phase 7 — AI Intelligence Layer
 * [ ] Phase 8 — Production Hardening & Deployment
@@ -1633,7 +1633,7 @@ Here is the simplest overall order:
 * [x] milestone 2: reviewer screening workflow complete
 * [x] milestone 3: judge scoring engine complete
 * [x] milestone 4: live session operations complete
-* [ ] milestone 5: archive and feedback complete
+* [x] milestone 5: archive and feedback complete
 * [ ] milestone 6: governance and reporting complete
 * [ ] milestone 7: AI advisory layer complete
 * [ ] milestone 8: production readiness complete

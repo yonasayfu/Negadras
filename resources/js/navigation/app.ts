@@ -7,11 +7,14 @@ import {
     Cast,
     ClipboardCheck,
     FileOutput,
+    Gem,
     FileSpreadsheet,
     FolderKanban,
     FileText,
     FolderOpen,
     Gavel,
+    MessageSquareQuote,
+    Trophy,
     IdCard,
     LayoutGrid,
     ListChecks,
@@ -27,7 +30,11 @@ import { index as adminSubmissionsIndex } from '@/routes/admin-submissions';
 import { edit as adminSettingsEdit } from '@/routes/admin-settings';
 import { dashboard } from '@/routes';
 import { index as applicantsIndex } from '@/routes/applicants';
+import { index as archiveIndex } from '@/routes/archive';
+import { index as awardsIndex } from '@/routes/awards';
 import { index as exportsIndex } from '@/routes/exports';
+import { index as feedbackIndex } from '@/routes/feedback';
+import { index as feedbackPacketsIndex } from '@/routes/feedback-packets';
 import { index as handbookIndex } from '@/routes/handbook';
 import { index as industriesIndex } from '@/routes/industries';
 import { index as judgeLiveIndex } from '@/routes/judge-live';
@@ -41,6 +48,7 @@ import { index as panelsIndex } from '@/routes/panels';
 import { index as reportsIndex } from '@/routes/reports';
 import { index as reviewerQueueIndex } from '@/routes/reviewer-queue';
 import { index as reviewersIndex } from '@/routes/reviewers';
+import { index as rankingsIndex } from '@/routes/rankings';
 import { index as rolesIndex } from '@/routes/roles';
 import { index as competitionSessionsIndex } from '@/routes/competition-sessions';
 import { index as screeningQueueIndex } from '@/routes/screening-queue';
@@ -134,6 +142,11 @@ export const appNavigation: NavGroup[] = [
                 permission: 'judge-workspace.view',
             },
             {
+                title: 'Feedback packets',
+                href: feedbackIndex(),
+                icon: MessageSquareQuote,
+            },
+            {
                 title: 'Judge live view',
                 href: judgeLiveIndex(),
                 icon: Cast,
@@ -209,6 +222,30 @@ export const appNavigation: NavGroup[] = [
                 href: shortlistIndex(),
                 icon: FileSpreadsheet,
                 permission: 'submissions.view',
+            },
+            {
+                title: 'Rankings',
+                href: rankingsIndex(),
+                icon: Trophy,
+                permission: 'rankings.view',
+            },
+            {
+                title: 'Awards',
+                href: awardsIndex(),
+                icon: Gem,
+                permission: 'awards.view',
+            },
+            {
+                title: 'Feedback packets',
+                href: feedbackPacketsIndex(),
+                icon: MessageSquareQuote,
+                permission: 'feedback-packets.view',
+            },
+            {
+                title: 'Archive',
+                href: archiveIndex(),
+                icon: FileText,
+                permission: 'archive.view',
             },
             {
                 title: 'Users',

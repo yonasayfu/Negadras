@@ -2,7 +2,10 @@
 
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\Admin\ApplicantManagementController;
+use App\Http\Controllers\Admin\ArchiveManagementController;
+use App\Http\Controllers\Admin\AwardManagementController;
 use App\Http\Controllers\Admin\CompetitionSessionManagementController;
+use App\Http\Controllers\Admin\FeedbackPacketManagementController;
 use App\Http\Controllers\Admin\IndustryManagementController;
 use App\Http\Controllers\Admin\JudgeManagementController;
 use App\Http\Controllers\Admin\LiveSessionController;
@@ -13,6 +16,7 @@ use App\Http\Controllers\Admin\PageImportController;
 use App\Http\Controllers\Admin\PageManagementController;
 use App\Http\Controllers\Admin\PanelManagementController;
 use App\Http\Controllers\Admin\PanelScoringController;
+use App\Http\Controllers\Admin\RankingManagementController;
 use App\Http\Controllers\Admin\ReviewerAssignmentManagementController;
 use App\Http\Controllers\Admin\ReviewerManagementController;
 use App\Http\Controllers\Admin\RoleManagementController;
@@ -33,7 +37,9 @@ use App\Http\Controllers\JudgeLiveSessionController;
 use App\Http\Controllers\JudgeWorkspaceController;
 use App\Http\Controllers\LiveDashboardController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PresenterFeedbackController;
 use App\Http\Controllers\PublicPageController;
+use App\Http\Controllers\PublicShowcaseController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\ReviewerQueueController;
 use App\Http\Controllers\ScreeningReviewController;
@@ -56,6 +62,8 @@ Route::middleware(['auth', 'verified', 'permission:dashboard.view'])->group(func
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('submissions', [SubmissionController::class, 'index'])->name('submissions.index');
+    Route::get('feedback', [PresenterFeedbackController::class, 'index'])->name('feedback.index');
+    Route::get('feedback/{presenterFeedbackPacket}', [PresenterFeedbackController::class, 'show'])->name('feedback.show');
 
     Route::get('submissions/create', [SubmissionController::class, 'create'])->name('submissions.create');
 
@@ -268,6 +276,66 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('admin/shortlist-export.csv', [ShortlistController::class, 'export'])
         ->middleware('permission:submissions.view')
         ->name('shortlist.export');
+
+    Route::get('admin/rankings', [RankingManagementController::class, 'index'])
+        ->middleware('permission:rankings.view')
+        ->name('rankings.index');
+
+    Route::post('admin/rankings', [RankingManagementController::class, 'store'])
+        ->middleware('permission:rankings.update')
+        ->name('rankings.store');
+
+    Route::put('admin/rankings/{rankingSnapshot}', [RankingManagementController::class, 'update'])
+        ->middleware('permission:rankings.update')
+        ->name('rankings.update');
+
+    Route::get('admin/awards', [AwardManagementController::class, 'index'])
+        ->middleware('permission:awards.view')
+        ->name('awards.index');
+
+    Route::post('admin/awards', [AwardManagementController::class, 'store'])
+        ->middleware('permission:awards.update')
+        ->name('awards.store');
+
+    Route::put('admin/awards/{awardRecord}', [AwardManagementController::class, 'update'])
+        ->middleware('permission:awards.update')
+        ->name('awards.update');
+
+    Route::get('admin/feedback-packets', [FeedbackPacketManagementController::class, 'index'])
+        ->middleware('permission:feedback-packets.view')
+        ->name('feedback-packets.index');
+
+    Route::post('admin/feedback-packets', [FeedbackPacketManagementController::class, 'store'])
+        ->middleware('permission:feedback-packets.update')
+        ->name('feedback-packets.store');
+
+    Route::put('admin/feedback-packets/{presenterFeedbackPacket}', [FeedbackPacketManagementController::class, 'update'])
+        ->middleware('permission:feedback-packets.update')
+        ->name('feedback-packets.update');
+
+    Route::post('admin/feedback-packets/{presenterFeedbackPacket}/send', [FeedbackPacketManagementController::class, 'send'])
+        ->middleware('permission:feedback-packets.update')
+        ->name('feedback-packets.send');
+
+    Route::get('admin/archive', [ArchiveManagementController::class, 'index'])
+        ->middleware('permission:archive.view')
+        ->name('archive.index');
+
+    Route::post('admin/archive', [ArchiveManagementController::class, 'store'])
+        ->middleware('permission:archive.update')
+        ->name('archive.store');
+
+    Route::put('admin/archive/{archiveRecord}', [ArchiveManagementController::class, 'update'])
+        ->middleware('permission:archive.update')
+        ->name('archive.update');
+
+    Route::post('admin/archive/highlights', [ArchiveManagementController::class, 'storeHighlight'])
+        ->middleware('permission:archive.update')
+        ->name('archive.highlights.store');
+
+    Route::put('admin/archive/highlights/{sessionHighlight}', [ArchiveManagementController::class, 'updateHighlight'])
+        ->middleware('permission:archive.update')
+        ->name('archive.highlights.update');
 
     Route::get('admin/reviewers', [ReviewerManagementController::class, 'index'])
         ->middleware('permission:reviewers.view')
@@ -658,5 +726,9 @@ require __DIR__.'/settings.php';
 
 Route::get('live-dashboard/{competitionSession}', [LiveDashboardController::class, 'show'])
     ->name('live-dashboard.show');
+
+Route::get('showcase', [PublicShowcaseController::class, 'index'])->name('showcase.index');
+
+Route::get('showcase/{publicShowcaseEntry:slug}', [PublicShowcaseController::class, 'show'])->name('showcase.show');
 
 Route::get('{page:slug}', PublicPageController::class)->name('public-pages.show');

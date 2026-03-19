@@ -142,6 +142,26 @@ class Submission extends Model
         return $this->hasMany(SessionPresenter::class)->latest('order_index');
     }
 
+    public function rankingSnapshots(): HasMany
+    {
+        return $this->hasMany(RankingSnapshot::class)->latest('updated_at');
+    }
+
+    public function awards(): HasMany
+    {
+        return $this->hasMany(AwardRecord::class)->latest('granted_at');
+    }
+
+    public function feedbackPackets(): HasMany
+    {
+        return $this->hasMany(PresenterFeedbackPacket::class)->latest('updated_at');
+    }
+
+    public function archiveRecords(): HasMany
+    {
+        return $this->hasMany(ArchiveRecord::class)->latest('archived_at');
+    }
+
     public function scopeDraft(Builder $query): Builder
     {
         return $query->where('status', SubmissionStatus::Draft);

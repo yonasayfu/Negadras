@@ -12,8 +12,10 @@ use App\Models\Stage;
 use App\Models\Submission;
 use App\SubmissionStatus;
 use App\Support\ActivityLogger;
+use App\Support\SubmissionVersionSnapshotter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -59,7 +61,7 @@ class SubmissionController extends Controller
         ]);
     }
 
-    public function store(StoreSubmissionRequest $request): RedirectResponse
+    public function store(StoreSubmissionRequest $request, SubmissionVersionSnapshotter $snapshotter): RedirectResponse
     {
         $this->authorize('create', Submission::class);
 
@@ -74,6 +76,14 @@ class SubmissionController extends Controller
             'status' => $intent === 'submit' ? SubmissionStatus::Submitted : SubmissionStatus::Draft,
             'submitted_at' => $intent === 'submit' ? now() : null,
         ]);
+
+        if ($intent === 'submit') {
+            $snapshotter->createSnapshot(
+                submission: $submission,
+                actor: $request->user(),
+                changeNote: 'Initial final submission.',
+            );
+        }
 
         ActivityLogger::record(
             actor: $request->user(),
@@ -104,6 +114,8 @@ class SubmissionController extends Controller
             'industry:id,name',
             'applicant:id,full_name,email',
             'organization:id,display_name',
+            'currentVersion:id,submission_id,version_no,created_by,change_note,is_locked,created_at',
+            'versions.creator:id,name',
         ]);
 
         return Inertia::render('submissions/Show', [
@@ -130,11 +142,13 @@ class SubmissionController extends Controller
         ]);
     }
 
-    public function update(UpdateSubmissionRequest $request, Submission $submission): RedirectResponse
+    public function update(UpdateSubmissionRequest $request, Submission $submission, SubmissionVersionSnapshotter $snapshotter): RedirectResponse
     {
         $this->authorize('update', $submission);
 
         $intent = $request->validated('intent');
+        $wasPreviouslySubmitted = $submission->status === SubmissionStatus::Submitted;
+        $wasReturned = $submission->status === SubmissionStatus::IncompleteReturned;
 
         $submission->update([
             ...$request->safe()->except('intent'),
@@ -143,6 +157,16 @@ class SubmissionController extends Controller
                 : ($submission->status === SubmissionStatus::IncompleteReturned ? SubmissionStatus::IncompleteReturned : SubmissionStatus::Draft),
             'submitted_at' => $intent === 'submit' ? now() : $submission->submitted_at,
         ]);
+
+        if ($intent === 'submit') {
+            $snapshotter->createSnapshot(
+                submission: $submission->fresh(),
+                actor: $request->user(),
+                changeNote: $wasReturned
+                    ? 'Presenter resubmitted after correction.'
+                    : ($wasPreviouslySubmitted ? 'Presenter submitted a new revision.' : 'Presenter finalized the submission draft.'),
+            );
+        }
 
         ActivityLogger::record(
             actor: $request->user(),
@@ -288,6 +312,22 @@ class SubmissionController extends Controller
             'applicantName' => $submission->applicant?->full_name,
             'applicantEmail' => $submission->applicant?->email,
             'isPublicAfterApproval' => $submission->is_public_after_approval,
+            'currentVersionNumber' => $submission->currentVersion?->version_no,
+            'versionCount' => $submission->versions->count(),
+            'versionHistory' => $submission->versions
+                ->map(fn ($version): array => [
+                    'id' => $version->id,
+                    'versionNo' => $version->version_no,
+                    'changeNote' => $version->change_note,
+                    'createdAt' => $version->created_at?->toDateTimeString(),
+                    'createdBy' => $version->creator?->name,
+                    'isLocked' => $version->is_locked,
+                    'isCurrent' => $submission->current_version_id === $version->id,
+                    'snapshotTitle' => $version->snapshot_json['title'] ?? $submission->title,
+                    'snapshotStatus' => Str::of($version->snapshot_json['status'] ?? 'draft')->replace('_', ' ')->title()->toString(),
+                ])
+                ->values()
+                ->all(),
         ];
     }
 }

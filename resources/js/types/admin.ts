@@ -160,6 +160,21 @@ export type ManagedSubmission = {
     industryId?: number | null;
     organizationId?: number | null;
     isPublicAfterApproval?: boolean;
+    currentVersionNumber?: number | null;
+    versionCount?: number;
+    versionHistory?: SubmissionVersionEntry[];
+};
+
+export type SubmissionVersionEntry = {
+    id: number;
+    versionNo: number;
+    changeNote: string | null;
+    createdAt: string | null;
+    createdBy: string | null;
+    isLocked: boolean;
+    isCurrent: boolean;
+    snapshotTitle: string;
+    snapshotStatus: string;
 };
 
 export type SubmissionStageOption = {

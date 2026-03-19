@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Submission;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -61,6 +62,8 @@ class SubmissionManagementController extends Controller
             'industry:id,name',
             'applicant:id,full_name,email',
             'organization:id,display_name',
+            'currentVersion:id,submission_id,version_no,created_by,change_note,is_locked,created_at',
+            'versions.creator:id,name',
         ]);
 
         return Inertia::render('admin/Submissions/Show', [
@@ -73,6 +76,22 @@ class SubmissionManagementController extends Controller
                 'applicantName' => $submission->applicant?->full_name,
                 'applicantEmail' => $submission->applicant?->email,
                 'isPublicAfterApproval' => $submission->is_public_after_approval,
+                'currentVersionNumber' => $submission->currentVersion?->version_no,
+                'versionCount' => $submission->versions->count(),
+                'versionHistory' => $submission->versions
+                    ->map(fn ($version): array => [
+                        'id' => $version->id,
+                        'versionNo' => $version->version_no,
+                        'changeNote' => $version->change_note,
+                        'createdAt' => $version->created_at?->toDateTimeString(),
+                        'createdBy' => $version->creator?->name,
+                        'isLocked' => $version->is_locked,
+                        'isCurrent' => $submission->current_version_id === $version->id,
+                        'snapshotTitle' => $version->snapshot_json['title'] ?? $submission->title,
+                        'snapshotStatus' => Str::of($version->snapshot_json['status'] ?? 'draft')->replace('_', ' ')->title()->toString(),
+                    ])
+                    ->values()
+                    ->all(),
             ],
         ]);
     }

@@ -39,6 +39,9 @@ const breadcrumbs: BreadcrumbItem[] = [
                 <template #actions>
                     <div class="flex items-center gap-2">
                         <StatusBadge :label="submission.statusLabel" :tone="submission.statusTone" />
+                        <Button v-if="submission.currentVersionNumber" variant="outline" disabled>
+                            Current version v{{ submission.currentVersionNumber }}
+                        </Button>
                         <Button as-child variant="outline">
                             <Link :href="adminSubmissionsIndex()">
                                 <ArrowLeft class="size-4" />
@@ -108,6 +111,49 @@ const breadcrumbs: BreadcrumbItem[] = [
                                 <dd class="font-medium">{{ submission.updatedAt ? new Date(submission.updatedAt).toLocaleString() : 'N/A' }}</dd>
                             </div>
                         </dl>
+                    </div>
+
+                    <div class="rounded-[1.5rem] border border-border/70 bg-card/85 p-5 shadow-sm">
+                        <div class="flex items-center justify-between gap-3">
+                            <h2 class="text-base font-semibold">Version history</h2>
+                            <span class="text-sm text-muted-foreground">{{ submission.versionCount ?? 0 }} version(s)</span>
+                        </div>
+
+                        <div v-if="(submission.versionHistory?.length ?? 0) === 0" class="mt-4 text-sm text-muted-foreground">
+                            No locked versions exist yet for this submission.
+                        </div>
+
+                        <ol v-else class="mt-4 grid gap-3">
+                            <li
+                                v-for="version in submission.versionHistory"
+                                :key="version.id"
+                                class="rounded-xl border border-border/70 bg-background/60 p-4"
+                            >
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <div class="flex items-center gap-2">
+                                        <div class="font-medium">v{{ version.versionNo }}</div>
+                                        <StatusBadge
+                                            :label="version.isCurrent ? 'Current version' : 'Locked version'"
+                                            :tone="version.isCurrent ? 'published' : 'draft'"
+                                        />
+                                    </div>
+                                    <div class="text-xs text-muted-foreground">
+                                        {{ version.createdAt ? new Date(version.createdAt).toLocaleString() : 'Unknown time' }}
+                                    </div>
+                                </div>
+
+                                <div class="mt-2 text-sm text-muted-foreground">
+                                    {{ version.changeNote || 'No change note recorded.' }}
+                                </div>
+
+                                <div class="mt-3 grid gap-1 text-sm text-muted-foreground">
+                                    <div>Snapshot title: {{ version.snapshotTitle }}</div>
+                                    <div>Snapshot status: {{ version.snapshotStatus }}</div>
+                                    <div>Created by: {{ version.createdBy || 'System' }}</div>
+                                    <div>Locked: {{ version.isLocked ? 'Yes' : 'No' }}</div>
+                                </div>
+                            </li>
+                        </ol>
                     </div>
                 </aside>
             </div>

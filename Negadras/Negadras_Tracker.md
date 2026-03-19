@@ -99,7 +99,8 @@ Current progress:
 - applicant and presenter foundation completed
 - organization and team foundation completed
 - submission core foundation completed
-- seasons, stages, industries, applicants, social links, organizations, team members, and submission intake are now in place
+- submission versioning foundation completed
+- seasons, stages, industries, applicants, social links, organizations, team members, submission intake, and submission versioning are now in place
 
 ### Phase N2: Operational Workflow
 

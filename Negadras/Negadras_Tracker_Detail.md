@@ -200,15 +200,15 @@ Do **not** start reviewers, judges, scores, AI, live dashboard, or archives yet.
 
 ### E1. Submission Versions
 
-* [ ] Create `submission_versions` migration
-* [ ] Add fields: `submission_id`, `version_no`, `snapshot_json`, `change_note`, `created_by`, `created_at`, `is_locked`
-* [ ] Create SubmissionVersion model
-* [ ] Create version snapshot service
-* [ ] Save version snapshot when user submits final version
-* [ ] Save version snapshot on major edit if needed
-* [ ] Show version history on submission detail page
-* [ ] Add "current version" label
-* [ ] Prevent accidental overwrite of locked version
+* [x] Create `submission_versions` migration
+* [x] Add fields: `submission_id`, `version_no`, `snapshot_json`, `change_note`, `created_by`, `created_at`, `is_locked`
+* [x] Create SubmissionVersion model
+* [x] Create version snapshot service
+* [x] Save version snapshot when user submits final version
+* [x] Save version snapshot on major edit if needed
+* [x] Show version history on submission detail page
+* [x] Add "current version" label
+* [x] Prevent accidental overwrite of locked version
 
 This part is important because later phases will need revision history.
 

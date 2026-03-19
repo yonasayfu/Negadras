@@ -1508,3 +1508,283 @@ Why this matters:
    - presenter must control the linked organization
 4. Use enums early when a workflow will expand later.
 5. Separate presenter UX from staff UX even when they read the same model.
+
+---
+
+## Entry 005: Phase N1 Step 5 - Submission Versioning Foundation
+
+This phase added immutable submission history on top of the draft and final-submit flow from the previous phase.
+
+The goal was to:
+
+- freeze each final submission snapshot
+- keep a stable `current_version_id`
+- show version history on the detail pages
+- prepare later phases like file attachments, screening, and judging to reference a locked version instead of a moving draft
+
+### What existed before
+
+Before this phase:
+
+- a submission record existed
+- final submit changed the submission status
+- no immutable snapshot of that final state was stored
+- `current_version_id` existed on the table but did nothing yet
+
+That meant the system knew a submission had been sent, but it had no durable record of what exactly was sent at each finalization moment.
+
+### What changed by file and why
+
+#### [database/migrations/2026_03_19_060518_create_submission_versions_table.php](/Users/yonassayfu/Herd/Negadras/database/migrations/2026_03_19_060518_create_submission_versions_table.php)
+
+This migration created the history table and connected `submissions.current_version_id` to it.
+
+Core structure:
+
+```diff
++ $table->foreignId('submission_id')->constrained()->cascadeOnDelete();
++ $table->unsignedInteger('version_no');
++ $table->json('snapshot_json');
++ $table->text('change_note')->nullable();
++ $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
++ $table->boolean('is_locked')->default(true);
++ $table->unique(['submission_id', 'version_no']);
+```
+
+And the second important part:
+
+```diff
++ $table->foreign('current_version_id')
++     ->references('id')
++     ->on('submission_versions')
++     ->nullOnDelete();
+```
+
+Why:
+
+- every version belongs to one submission
+- version numbers must be unique per submission
+- the snapshot must be stored as a real payload, not recomputed later from a moving record
+- `current_version_id` must point to one specific locked version
+
+#### [app/Models/SubmissionVersion.php](/Users/yonassayfu/Herd/Negadras/app/Models/SubmissionVersion.php)
+
+This model represents one immutable submission snapshot.
+
+Important fields:
+
+```diff
++ 'submission_id',
++ 'version_no',
++ 'snapshot_json',
++ 'change_note',
++ 'created_by',
++ 'is_locked',
+```
+
+Casts:
+
+```php
+return [
+    'snapshot_json' => 'array',
+    'is_locked' => 'boolean',
+];
+```
+
+Why:
+
+- `snapshot_json` should behave like structured data in PHP
+- `is_locked` is explicit because later phases may distinguish locked historical versions from in-progress working states if needed
+
+#### [app/Models/Submission.php](/Users/yonassayfu/Herd/Negadras/app/Models/Submission.php)
+
+This model gained the relationships that turn versioning into a usable API.
+
+New relationships:
+
+```diff
++ public function currentVersion(): BelongsTo
++ public function versions(): HasMany
+```
+
+Why:
+
+- `currentVersion` gives one direct pointer for the active frozen snapshot
+- `versions()` provides the ordered history
+- later review modules can use `currentVersion` without re-deriving “latest locked version” every time
+
+#### [app/Support/SubmissionVersionSnapshotter.php](/Users/yonassayfu/Herd/Negadras/app/Support/SubmissionVersionSnapshotter.php)
+
+This is the core business service of the phase.
+
+It is intentionally separate from the controller so version creation rules stay reusable and testable.
+
+Important flow:
+
+```php
+$nextVersionNumber = (int) $submission->versions()->max('version_no') + 1;
+
+$version = $submission->versions()->create([
+    'version_no' => $nextVersionNumber,
+    'snapshot_json' => $this->snapshotPayload($submission),
+    'change_note' => $changeNote,
+    'created_by' => $actor?->id,
+    'is_locked' => true,
+]);
+
+$submission->forceFill([
+    'current_version_id' => $version->id,
+])->save();
+```
+
+Why:
+
+- new final submissions create new rows instead of mutating old versions
+- old history stays intact
+- `current_version_id` moves forward atomically inside the same transaction
+
+The snapshot payload includes:
+
+- narrative fields
+- status and submitted timestamp
+- visibility preference
+- season, stage, industry, applicant, and organization summaries
+
+Why:
+
+- later phases should be able to inspect what was submitted at that moment even if related master records change later
+
+#### [app/Http/Controllers/SubmissionController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/SubmissionController.php)
+
+This controller now triggers version creation at the correct business transition.
+
+Initial final submit:
+
+```php
+if ($intent === 'submit') {
+    $snapshotter->createSnapshot(
+        submission: $submission,
+        actor: $request->user(),
+        changeNote: 'Initial final submission.',
+    );
+}
+```
+
+Resubmission path:
+
+```php
+if ($intent === 'submit') {
+    $snapshotter->createSnapshot(
+        submission: $submission->fresh(),
+        actor: $request->user(),
+        changeNote: $wasReturned
+            ? 'Presenter resubmitted after correction.'
+            : ($wasPreviouslySubmitted ? 'Presenter submitted a new revision.' : 'Presenter finalized the submission draft.'),
+    );
+}
+```
+
+Why:
+
+- snapshot creation belongs to the final-submit transition, not to every draft save
+- returned submissions should create a second version when they are sent again
+- the note makes the history readable for staff later
+
+This controller also now exposes:
+
+```diff
++ currentVersionNumber
++ versionCount
++ versionHistory
+```
+
+Why:
+
+- the frontend needs structured version data instead of rebuilding it from raw snapshots
+
+#### [app/Http/Controllers/Admin/SubmissionManagementController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/SubmissionManagementController.php)
+
+The staff-facing show page now also exposes version history.
+
+Why:
+
+- intake and screening staff should inspect the locked history
+- they should not need the presenter-facing page to understand version progression
+
+#### [resources/js/types/admin.ts](/Users/yonassayfu/Herd/Negadras/resources/js/types/admin.ts)
+
+New type:
+
+```diff
++ export type SubmissionVersionEntry = {
++     id: number;
++     versionNo: number;
++     changeNote: string | null;
++     createdAt: string | null;
++     createdBy: string | null;
++     isLocked: boolean;
++     isCurrent: boolean;
++     snapshotTitle: string;
++     snapshotStatus: string;
++ };
+```
+
+And `ManagedSubmission` now includes:
+
+```diff
++ currentVersionNumber?: number | null;
++ versionCount?: number;
++ versionHistory?: SubmissionVersionEntry[];
+```
+
+Why:
+
+- the frontend needs a typed history structure
+- later file uploads and status history can reuse the same submission detail type cleanly
+
+#### Presenter detail UI
+
+- [resources/js/pages/submissions/Show.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/submissions/Show.vue)
+
+What changed:
+
+```diff
++ Current version vX badge
++ version count
++ version history list
++ current versus locked labels
+```
+
+Why:
+
+- presenters should understand what final version is currently authoritative
+- they should also see when a new locked version was created
+
+#### Admin detail UI
+
+- [resources/js/pages/admin/Submissions/Show.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/Submissions/Show.vue)
+
+Why:
+
+- staff needs the same historical visibility
+- review operations should stay on the admin side
+
+#### Tests
+
+- [tests/Feature/SubmissionVersioningTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/SubmissionVersioningTest.php)
+- [tests/Feature/Admin/SubmissionVersionHistoryTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/Admin/SubmissionVersionHistoryTest.php)
+
+What they prove:
+
+1. final submission creates version 1 and points `current_version_id` to it
+2. resubmitting a returned submission creates version 2 instead of overwriting version 1
+3. presenter detail page exposes current version label and history
+4. manager can inspect version history on the admin detail page
+
+### Laravel takeaways from this phase
+
+1. Immutable history should be a separate model, not a field bundle inside the live record.
+2. Put snapshot creation in a dedicated service when multiple controllers or later jobs may need the same behavior.
+3. `current_version_id` is a convenience pointer, not a substitute for a real history table.
+4. Store enough relational context in the snapshot so later changes to master records do not erase the original submitted meaning.
+5. Version history is useful only if both the presenter side and the staff side can read it in the right context.

@@ -102,7 +102,8 @@ Current progress:
 - submission versioning foundation completed
 - submission file upload foundation completed
 - submission status tracking foundation completed
-- seasons, stages, industries, applicants, social links, organizations, team members, submission intake, submission versioning, private submission file handling, and status history tracking are now in place
+- intake management foundation completed
+- seasons, stages, industries, applicants, social links, organizations, team members, submission intake, submission versioning, private submission file handling, status history tracking, and intake operations are now in place
 
 ### Phase N2: Operational Workflow
 

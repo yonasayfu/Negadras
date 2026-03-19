@@ -4,12 +4,16 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\TransitionSubmissionStatusRequest;
+use App\Models\Industry;
+use App\Models\Season;
+use App\Models\Stage;
 use App\Models\Submission;
 use App\Models\SubmissionFile;
 use App\Models\SubmissionStatusHistory;
 use App\SubmissionStatus;
 use App\Support\ActivityLogger;
 use App\Support\SubmissionFileRegistry;
+use App\Support\SubmissionIntakeChecklist;
 use App\Support\SubmissionStatusTransitionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,6 +28,12 @@ class SubmissionManagementController extends Controller
         $this->authorize('viewAny', Submission::class);
 
         $search = $request->string('search')->trim()->toString();
+        $seasonId = $request->integer('season_id');
+        $stageId = $request->integer('stage_id');
+        $industryId = $request->integer('industry_id');
+        $status = $request->string('status')->trim()->toString();
+        $transitionService = app(SubmissionStatusTransitionService::class);
+        $checklist = app(SubmissionIntakeChecklist::class);
 
         return Inertia::render('admin/Submissions/Index', [
             'submissions' => Submission::query()
@@ -31,9 +41,16 @@ class SubmissionManagementController extends Controller
                     'season:id,name',
                     'currentStage:id,name',
                     'industry:id,name',
-                    'applicant:id,full_name,email',
-                    'organization:id,display_name',
+                    'applicant:id,full_name,email,phone',
+                    'organization:id,display_name,contact_email',
+                    'organization.teamMembers:id,organization_id,is_primary_contact',
+                    'files:id,submission_id,file_type',
+                    'statusHistory:id,submission_id,from_status,to_status,changed_by,reason,created_at',
                 ])
+                ->when($seasonId > 0, fn ($query) => $query->where('season_id', $seasonId))
+                ->when($stageId > 0, fn ($query) => $query->where('current_stage_id', $stageId))
+                ->when($industryId > 0, fn ($query) => $query->where('industry_id', $industryId))
+                ->when($status !== '', fn ($query) => $query->where('status', $status))
                 ->when($search !== '', function ($query) use ($search): void {
                     $query->where(function ($submissionQuery) use ($search): void {
                         $submissionQuery
@@ -53,10 +70,51 @@ class SubmissionManagementController extends Controller
                 ->latest()
                 ->paginate(10)
                 ->withQueryString()
-                ->through(fn (Submission $submission): array => $this->submissionSummary($submission)),
+                ->through(fn (Submission $submission): array => $this->submissionSummary($submission, $checklist, $transitionService)),
             'filters' => [
                 'search' => $search,
+                'seasonId' => $seasonId > 0 ? (string) $seasonId : '',
+                'stageId' => $stageId > 0 ? (string) $stageId : '',
+                'industryId' => $industryId > 0 ? (string) $industryId : '',
+                'status' => $status,
             ],
+            'seasonOptions' => Season::query()
+                ->orderByDesc('year')
+                ->get(['id', 'name', 'year'])
+                ->map(fn (Season $season): array => [
+                    'value' => (string) $season->id,
+                    'label' => sprintf('%s (%s)', $season->name, $season->year),
+                ])
+                ->all(),
+            'stageOptions' => Stage::query()
+                ->with('season:id,name')
+                ->orderBy('season_id')
+                ->orderBy('order_index')
+                ->get()
+                ->map(fn (Stage $stage): array => [
+                    'value' => (string) $stage->id,
+                    'label' => sprintf('%s - %s', $stage->season?->name ?? 'Season', $stage->name),
+                ])
+                ->all(),
+            'industryOptions' => Industry::query()
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(fn (Industry $industry): array => [
+                    'value' => (string) $industry->id,
+                    'label' => $industry->name,
+                ])
+                ->all(),
+            'statusOptions' => collect([
+                SubmissionStatus::Draft,
+                SubmissionStatus::Submitted,
+                SubmissionStatus::UnderIntakeCheck,
+                SubmissionStatus::IncompleteReturned,
+                SubmissionStatus::Eligible,
+                SubmissionStatus::Rejected,
+            ])->map(fn (SubmissionStatus $submissionStatus): array => [
+                'value' => $submissionStatus->value,
+                'label' => $submissionStatus->label(),
+            ])->all(),
         ]);
     }
 
@@ -68,8 +126,9 @@ class SubmissionManagementController extends Controller
             'season:id,name',
             'currentStage:id,name',
             'industry:id,name',
-            'applicant:id,full_name,email',
-            'organization:id,display_name',
+            'applicant:id,full_name,email,phone',
+            'organization:id,display_name,contact_email',
+            'organization.teamMembers:id,organization_id,is_primary_contact',
             'currentVersion:id,submission_id,version_no,created_by,change_note,is_locked,created_at',
             'versions.creator:id,name',
             'files.version:id,version_no',
@@ -79,7 +138,11 @@ class SubmissionManagementController extends Controller
 
         return Inertia::render('admin/Submissions/Show', [
             'submission' => [
-                ...$this->submissionSummary($submission),
+                ...$this->submissionSummary(
+                    $submission,
+                    app(SubmissionIntakeChecklist::class),
+                    app(SubmissionStatusTransitionService::class),
+                ),
                 'summary' => $submission->summary,
                 'problemStatement' => $submission->problem_statement,
                 'solutionDescription' => $submission->solution_description,
@@ -159,8 +222,13 @@ class SubmissionManagementController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function submissionSummary(Submission $submission): array
-    {
+    private function submissionSummary(
+        Submission $submission,
+        SubmissionIntakeChecklist $checklist,
+        SubmissionStatusTransitionService $transitionService,
+    ): array {
+        $intakeChecklist = $checklist->forSubmission($submission);
+
         return [
             'id' => $submission->id,
             'title' => $submission->title,
@@ -175,6 +243,9 @@ class SubmissionManagementController extends Controller
             'statusTone' => $submission->status->tone(),
             'submittedAt' => $submission->submitted_at?->toDateTimeString(),
             'updatedAt' => $submission->updated_at?->toDateTimeString(),
+            'latestStatusReason' => $submission->statusHistory->first()?->reason,
+            'intakeChecklist' => $intakeChecklist,
+            'availableTransitions' => $transitionService->availableStaffTransitions($submission),
         ];
     }
 

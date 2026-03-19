@@ -2585,3 +2585,257 @@ What is still intentionally not done in this phase:
 - secretary-specific role split
 
 Those belong to later intake-management and operational workflow phases.
+
+## Entry 007: Phase N1 Step 7 - Intake Management Module
+
+### Scope
+
+This batch turned the admin submissions queue into the first real intake operations surface:
+
+- admin/manager/secretary intake list
+- season, stage, industry, and status filters
+- derived intake checklist
+- return-for-correction notes from the list workflow
+- quick operational review actions
+
+The goal was to make staff able to work from the queue instead of opening every submission detail page just to decide the next intake step.
+
+### Architecture decision
+
+The intake checklist is **derived**, not persisted.
+
+Why:
+
+- profile completeness, required files, industry selection, and narrative completeness already exist in the core submission data
+- storing a second `is_intake_ready` field would drift out of sync quickly
+
+So the correct design here is:
+
+- one service computes intake readiness from the current submission state
+- both the list and the detail page render the same derived result
+
+That keeps the intake rules centralized and auditable.
+
+### Files and why they changed
+
+#### [app/Support/SubmissionIntakeChecklist.php](/Users/yonassayfu/Herd/Negadras/app/Support/SubmissionIntakeChecklist.php)
+
+Before:
+
+```diff
+- empty artisan stub
+```
+
+After:
+
+```diff
++ forSubmission(Submission $submission): array
++ returns:
++   items
++   passedCount
++   totalCount
++   isReady
+```
+
+What it checks:
+
+```diff
++ presenter profile complete
++ organization info complete
++ required files uploaded
++ industry selected
++ summary completed
++ contact info valid
+```
+
+Why:
+
+- this is the first operational readiness engine for intake
+- it converts raw submission data into a staff-facing decision summary
+
+This service is deliberately simple and deterministic. Later phases can extend it, but Phase 1 needed a trustworthy baseline first.
+
+#### [database/seeders/RolePermissionSeeder.php](/Users/yonassayfu/Herd/Negadras/database/seeders/RolePermissionSeeder.php)
+
+What changed:
+
+```diff
++ added Secretary role
++ Manager keeps submissions.update
++ Secretary receives submissions.view + submissions.update
+```
+
+Why:
+
+- the tracker explicitly calls out admin, manager, and secretary as intake actors
+- the system needed a real `Secretary` role instead of treating everything as `Manager`
+
+This matters because Negadras is not just RBAC by page. It is operational role separation.
+
+#### [app/Http/Controllers/Admin/SubmissionManagementController.php](/Users/yonassayfu/Herd/Negadras/app/Http/Controllers/Admin/SubmissionManagementController.php)
+
+This file absorbed most of the intake behavior.
+
+What changed in `index()`:
+
+```diff
++ filters:
++   season_id
++   stage_id
++   industry_id
++   status
++ richer eager loading for checklist computation
++ seasonOptions
++ stageOptions
++ industryOptions
++ statusOptions
++ submissionSummary(...) now receives:
++   SubmissionIntakeChecklist
++   SubmissionStatusTransitionService
+```
+
+Why:
+
+- the intake queue needs operational filters, not only text search
+- checklist readiness depends on related data like applicant phone, organization contact email, primary contact, and uploaded files
+
+Important correction made during this phase:
+
+- the checklist was initially false-negative because the list only eager-loaded `applicant.full_name` and `applicant.email`
+- the service also needed `applicant.phone`
+- I fixed the controller eager loads instead of weakening the checklist rules
+
+That is the right engineering choice because the business rule was correct; the query shape was incomplete.
+
+What changed in `submissionSummary()`:
+
+```diff
++ latestStatusReason
++ intakeChecklist
++ availableTransitions
+```
+
+Why:
+
+- the queue now needs enough data to let staff judge readiness and act immediately
+- the row should expose whether the submission is intake-ready and what transitions are currently allowed
+
+What changed in `show()`:
+
+```diff
++ checklist-safe eager loads
++ show page now inherits the same derived intake summary as the list
+```
+
+Why:
+
+- the intake checklist should not disagree between queue and detail page
+
+#### [resources/js/types/admin.ts](/Users/yonassayfu/Herd/Negadras/resources/js/types/admin.ts)
+
+What changed:
+
+```diff
++ SubmissionIntakeChecklist
++ SubmissionIntakeChecklistItem
++ ManagedSubmission.intakeChecklist
++ ManagedSubmission.availableTransitions
++ ResourceFilters now includes seasonId, stageId, industryId, status
+```
+
+Why:
+
+- once the queue payload grew beyond simple summary rows, the frontend types had to become explicit
+- this keeps the Inertia payload contract honest
+
+#### [resources/js/pages/admin/Submissions/Index.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/Submissions/Index.vue)
+
+This is the main intake-management page.
+
+Before:
+
+```diff
+- search only
+- summary table
+- view button only
+```
+
+After:
+
+```diff
++ filters for season, stage, industry, status
++ checklist summary column
++ latest status note under current badge
++ quick review action block per row
++ reason textarea in list workflow
++ list-level transition post to admin-submissions.transition
+```
+
+Why:
+
+- the user requirement was explicit: intake staff should work from the queue
+- return-for-correction note handling must exist in the list workflow, not only on the detail page
+
+This page now functions like the first real intake cockpit.
+
+#### [resources/js/pages/admin/Submissions/Show.vue](/Users/yonassayfu/Herd/Negadras/resources/js/pages/admin/Submissions/Show.vue)
+
+What changed:
+
+```diff
++ intake checklist panel
+```
+
+Why:
+
+- even though the queue is now stronger, the detail page still needs the same readiness breakdown
+- the checklist service is now reused in both places
+
+That reuse is important. Intake logic should not split into “queue rules” and “detail rules.”
+
+#### [tests/Feature/Admin/SubmissionIntakeManagementTest.php](/Users/yonassayfu/Herd/Negadras/tests/Feature/Admin/SubmissionIntakeManagementTest.php)
+
+This test file proves the intake module works.
+
+It now covers:
+
+```diff
++ secretary can access the intake queue
++ queue exposes checklist data and filter option payloads
++ queue filters by status
++ a checklist can resolve to ready when the submission is actually complete
++ manager can apply a quick return-for-correction transition with a note
+```
+
+Why:
+
+- this phase changed the queue from read-only to operational
+- without feature tests, the checklist and quick review workflow would be too easy to regress
+
+### Laravel takeaways from this phase
+
+1. Derived operational state should usually come from a service, not a duplicated database flag.
+2. If a derived service depends on relation fields, the controller query must load the full shape required by that service.
+3. Queue pages become genuinely useful only when they carry both decision data and action controls.
+4. Role modeling should follow the business process; adding `Secretary` here was a workflow decision, not just a permission change.
+5. Inertia list pages can support real operations without needing a second separate “review module” page when the payload is shaped correctly.
+
+### Practical Negadras result
+
+At the end of this phase:
+
+- admin, manager, and secretary can work from the intake queue
+- the queue filters by season, stage, industry, status, and search text
+- every row now shows a real intake readiness summary
+- staff can see the latest return/review note immediately
+- staff can move a submission from the list with a reason when needed
+- the admin detail page shows the same checklist logic as the list
+
+What is still intentionally not done in this phase:
+
+- batch transitions
+- checklist persistence override
+- secretary-specific assignment queue
+- reviewer assignment from the intake list
+
+Those belong to later operational and review phases.

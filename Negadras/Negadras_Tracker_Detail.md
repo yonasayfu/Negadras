@@ -281,36 +281,36 @@ Do not add later complex statuses yet.
 
 ### H1. Intake Review Screen
 
-* [ ] Create submission intake list page for admin/manager/secretary
-* [ ] Add filters by season
-* [ ] Add filters by stage
-* [ ] Add filters by industry
-* [ ] Add filters by status
-* [ ] Add search by presenter/project name
-* [ ] Add table columns for quick review
-* [ ] Add quick status update action
-* [ ] Add detail drawer or detail page
+* [x] Create submission intake list page for admin/manager/secretary
+* [x] Add filters by season
+* [x] Add filters by stage
+* [x] Add filters by industry
+* [x] Add filters by status
+* [x] Add search by presenter/project name
+* [x] Add table columns for quick review
+* [x] Add quick status update action
+* [x] Add detail drawer or detail page
 
 ### H2. Intake Checklist
 
-* [ ] Add simple checklist block in UI:
+* [x] Add simple checklist block in UI:
 
-  * [ ] profile complete
-  * [ ] organization info complete
-  * [ ] required files uploaded
-  * [ ] industry selected
-  * [ ] summary completed
-  * [ ] contact info valid
-* [ ] Show checklist pass/fail visually
-* [ ] Let secretary/admin write intake note
-* [ ] Allow return for correction with note
+  * [x] profile complete
+  * [x] organization info complete
+  * [x] required files uploaded
+  * [x] industry selected
+  * [x] summary completed
+  * [x] contact info valid
+* [x] Show checklist pass/fail visually
+* [x] Let secretary/admin write intake note
+* [x] Allow return for correction with note
 
 ### H3. Intake Permissions
 
-* [ ] Secretary can review and return incomplete
-* [ ] Manager can mark eligible/rejected
-* [ ] Presenter cannot change admin intake decisions directly
-* [ ] Super admin/admin can override
+* [x] Secretary can review and return incomplete
+* [x] Manager can mark eligible/rejected
+* [x] Presenter cannot change admin intake decisions directly
+* [x] Super admin/admin can override
 
 ---
 

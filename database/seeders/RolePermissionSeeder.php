@@ -108,6 +108,24 @@ class RolePermissionSeeder extends Seeder
                 'activity-logs.view',
             ],
         ],
+        'Secretary' => [
+            'description' => 'Intake operations role focused on submission review, return-for-correction, and coordination support.',
+            'permissions' => [
+                'dashboard.view',
+                'search.view',
+                'handbook.view',
+                'reports.view',
+                'applicants.view',
+                'organizations.view',
+                'seasons.view',
+                'stages.view',
+                'industries.view',
+                'submissions.view',
+                'submissions.update',
+                'notifications.view',
+                'activity-logs.view',
+            ],
+        ],
         'Member' => [
             'description' => 'Standard internal user with dashboard and notification access.',
             'permissions' => [

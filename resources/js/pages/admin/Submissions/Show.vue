@@ -141,6 +141,28 @@ const breadcrumbs: BreadcrumbItem[] = [
                         </dl>
                     </div>
 
+                    <div v-if="submission.intakeChecklist" class="rounded-[1.5rem] border border-border/70 bg-card/85 p-5 shadow-sm">
+                        <div class="flex items-center justify-between gap-3">
+                            <h2 class="text-base font-semibold">Intake checklist</h2>
+                            <span class="text-sm text-muted-foreground">
+                                {{ submission.intakeChecklist.passedCount }}/{{ submission.intakeChecklist.totalCount }} passed
+                            </span>
+                        </div>
+
+                        <ul class="mt-4 grid gap-3 text-sm">
+                            <li
+                                v-for="item in submission.intakeChecklist.items"
+                                :key="item.key"
+                                class="flex items-start justify-between gap-3 rounded-xl border border-border/70 bg-background/60 px-3 py-2"
+                            >
+                                <span>{{ item.label }}</span>
+                                <span :class="item.passed ? 'text-emerald-600' : 'text-amber-600'">
+                                    {{ item.passed ? 'Pass' : 'Fail' }}
+                                </span>
+                            </li>
+                        </ul>
+                    </div>
+
                     <div v-if="canTransitionStatus && availableTransitions.length > 0" class="rounded-[1.5rem] border border-border/70 bg-card/85 p-5 shadow-sm">
                         <h2 class="text-base font-semibold">Status transition</h2>
                         <p class="mt-2 text-sm text-muted-foreground">

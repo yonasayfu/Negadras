@@ -163,10 +163,25 @@ export type ManagedSubmission = {
     currentVersionNumber?: number | null;
     versionCount?: number;
     latestStatusReason?: string | null;
+    intakeChecklist?: SubmissionIntakeChecklist;
+    availableTransitions?: SubmissionTransitionOption[];
     draftFiles?: ManagedSubmissionFile[];
     currentVersionFiles?: ManagedSubmissionFile[];
     versionHistory?: SubmissionVersionEntry[];
     statusTimeline?: SubmissionStatusTimelineEntry[];
+};
+
+export type SubmissionIntakeChecklist = {
+    items: SubmissionIntakeChecklistItem[];
+    passedCount: number;
+    totalCount: number;
+    isReady: boolean;
+};
+
+export type SubmissionIntakeChecklistItem = {
+    key: string;
+    label: string;
+    passed: boolean;
 };
 
 export type SubmissionVersionEntry = {
@@ -334,6 +349,10 @@ export type PermissionGroup = {
 
 export type ResourceFilters = {
     search: string;
+    seasonId?: string;
+    stageId?: string;
+    industryId?: string;
+    status?: string;
 };
 
 export type PaginationLink = {

@@ -1454,31 +1454,40 @@ Add or expand:
 
 ---
 
-# Phase 7 — AI Intelligence Layer
+# Phase 7 — AI Judge Copilot & Advisory Layer
 
 ## Phase 7 Goal
 
-Add AI as an advisory layer after the workflow is stable.
+Add an in-app AI copilot for judges and staff after the workflow is stable.
 
 At the end of this phase, the system should support:
 
-* document summaries
-* key insight extraction
-* AI comparison notes
-* draft feedback assistance
-* searchable AI archive summaries
+* grounded chat on a specific competitor submission
+* PDF, document, and media review support
+* transcript-aware video and audio analysis
+* judge-side follow-up questions in real time during evaluation
+* latest external research and news lookups with source labeling
+* advisory summaries, risks, and draft feedback assistance
 
 AI should remain advisory, not authoritative.
+
+Primary implementation direction:
+
+* use Laravel AI SDK for the in-app experience
+* use conversation storage and agent patterns from the SDK
+* keep MCP out of the core Phase 7 path unless external AI client access is explicitly needed later
 
 ---
 
 ## Phase 7 Main Modules
 
-* AI Analysis Runner
-* Document Summary
-* Comparison Insight
-* AI Risk Flags
-* AI Draft Feedback Assistant
+* AI Foundation & Agent Layer
+* Submission AI Asset Ingestion
+* Judge Copilot Chat
+* Retrieval & Web Research
+* Advisory Insights & Risk Flags
+* Draft Feedback Assistant
+* AI Governance
 
 ---
 
@@ -1486,66 +1495,117 @@ AI should remain advisory, not authoritative.
 
 Add:
 
-* ai_analysis_runs
-* ai_insights
-* ai_source_references
-* ai_risk_flags
-* ai_comparison_records
+* published Laravel AI SDK tables:
+  * agent_conversations
+  * agent_conversation_messages
+* submission_ai_assets
+* submission_ai_analyses
+* submission_ai_source_references
+* submission_ai_risk_flags
 
 ---
 
 ## Phase 7 Checklist
 
-## A. AI Analysis Runs
+## A. AI Foundation
 
-* [ ] Create `ai_analysis_runs` migration
-* [ ] Add run metadata fields
-* [ ] Create model
-* [ ] Add async background job support
-* [ ] Add run status tracking
-* [ ] Add retry/failure handling
+* [ ] Install `laravel/ai`
+* [ ] Publish AI SDK config and migrations
+* [ ] Configure provider and model defaults
+* [ ] Define provider failover strategy
+* [ ] Add Phase 7 env/config guidance
+* [ ] Create base `JudgeSubmissionCopilot` agent
+* [ ] Add explicit advisory-only instructions
 
-## B. AI Insights
+## B. Submission AI Asset Ingestion
 
-* [ ] Create `ai_insights` migration
+* [ ] Create `submission_ai_assets` migration
+* [ ] Store source asset metadata:
+  * [ ] file type
+  * [ ] provider file id
+  * [ ] transcript status
+  * [ ] processing status
+  * [ ] source hash / version marker
+* [ ] Support PDF and office-style document ingestion
+* [ ] Support image asset ingestion
+* [ ] Support audio/video transcription pipeline
+* [ ] Attach assets to a specific submission and version
+* [ ] Restrict retrieval to authorized judges and staff
+
+## C. Judge Copilot Chat
+
+* [ ] Add judge copilot panel in the judging workspace
+* [ ] Start a conversation per judge and submission
+* [ ] Use AI SDK conversation storage
+* [ ] Stream assistant responses in the UI
+* [ ] Show source citations with each answer
+* [ ] Keep conversation context submission-scoped
+* [ ] Keep chat separate from official scoring inputs
+
+## D. Retrieval & Web Research
+
+* [ ] Add internal submission retrieval tool
+* [ ] Ground answers on uploaded documents and transcripts
+* [ ] Add optional external web research tool
+* [ ] Mark external findings separately from internal facts
+* [ ] Log all external-research lookups
+* [ ] Add source reference records to persisted output
+* [ ] Enforce allowlist / guardrails for external research
+
+## E. Advisory Insights
+
+* [ ] Create `submission_ai_analyses` migration
 * [ ] Add insight types:
-
-  * [ ] summary
-  * [ ] key_claims
-  * [ ] market_comparison
-  * [ ] social_summary
-  * [ ] archive_summary
-* [ ] Build judge/reviewer insight sidebar
+  * [ ] executive summary
+  * [ ] missing information
+  * [ ] claim checklist
+  * [ ] market / competition note
+  * [ ] legal / compliance caution note
+  * [ ] financial-risk note
+  * [ ] judge prep question suggestions
+* [ ] Build judge insight sidebar on the submission
+* [ ] Add regenerate / refresh action
 * [ ] Label all insights as advisory
 
-## C. AI Risk Flags
+## F. AI Risk Flags
 
-* [ ] Create `ai_risk_flags` migration
-* [ ] Add duplicate idea warning
-* [ ] Add missing section warning
-* [ ] Add unsupported claim warning placeholder
+* [ ] Create `submission_ai_risk_flags` migration
+* [ ] Add incomplete-submission warning
+* [ ] Add unsupported-claim placeholder
+* [ ] Add high-risk assumption placeholder
+* [ ] Add duplicate / overlap warning placeholder
+* [ ] Show flags without blocking official workflow
 
-## D. Feedback Drafting
+## G. Draft Feedback Assistance
 
-* [ ] Use AI to propose draft feedback packet text
+* [ ] Use AI to propose draft presenter feedback
+* [ ] Keep drafts editable by humans
 * [ ] Require human review before sending
-* [ ] Log human approval
+* [ ] Log who approved the final packet
+* [ ] Keep original AI draft distinct from the sent version
 
-## E. Testing
+## H. Governance & Testing
 
-* [ ] AI runs do not block manual workflow
-* [ ] failed AI runs do not break submission workflow
-* [ ] advisory labels always appear
-* [ ] human approval required where configured
+* [ ] Log AI conversation/session ownership
+* [ ] Log AI generation requests and failures
+* [ ] Log external research usage
+* [ ] Ensure AI failures never block manual workflow
+* [ ] Add tests for submission-scoped retrieval
+* [ ] Add tests for conversation persistence
+* [ ] Add tests for advisory labels
+* [ ] Add tests for human approval requirement
+* [ ] Add tests for role access boundaries
 
 ---
 
 ## Phase 7 Done Definition
 
-* [ ] AI summaries work
-* [ ] AI insights display correctly
+* [ ] judges can chat with a grounded submission copilot
+* [ ] uploaded documents and transcripts are actually used as context
+* [ ] external research is clearly labeled and logged
 * [ ] AI never replaces official score logic
-* [ ] failed AI runs are safe
+* [ ] failed AI operations are safe
+* [ ] human approval remains required where needed
 * [ ] tests pass
 
 ---

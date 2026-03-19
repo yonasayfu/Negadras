@@ -198,14 +198,22 @@ Operational closeout completed after Phase N5:
 - governance dashboard
 - override-event trail
 
-### Phase N6: AI Advisory Layer
+### Phase N6: AI Judge Copilot & Advisory Layer
 
-- submission summarization
-- transcript extraction
-- judge prep summaries
-- comparison/risk hints
+- Laravel AI SDK foundation
+- submission asset ingestion for PDF, docs, images, audio, and video transcripts
+- judge copilot chat per submission
+- grounded internal document retrieval
+- optional external web research with clear source labeling
+- advisory summaries, risks, and feedback drafts
 
 AI must remain advisory only.
+
+Important architecture note:
+
+- Phase N6 should use Laravel AI SDK for the in-app copilot
+- MCP is not the primary implementation path for this phase
+- MCP can be considered later if Negadras should be exposed to external AI clients like ChatGPT or Claude
 
 ### Phase N7: Hardening
 

@@ -5944,3 +5944,201 @@ At the end of this phase:
 - notification delivery is logged
 - override-sensitive actions create a governance trail
 - managers have a dedicated governance page for operational oversight
+
+---
+
+## Entry 017: Phase 7 AI Architecture Reset
+
+### Why Phase 7 needed a rewrite
+
+The original Phase 7 tracker was still too generic:
+
+- summaries
+- comparison notes
+- draft feedback
+
+That is not enough for the real Negadras use case.
+
+Your actual requirement is stronger:
+
+- judges should open one competitor submission
+- chat with AI inside the app
+- ask about the attached PDF and other uploaded material
+- later include transcript-aware video/audio analysis
+- optionally ask for recent external news or market context
+- receive suggestions from multiple professional perspectives without turning AI into the final decision-maker
+
+That means Phase 7 is not only an "AI insights" phase.
+It is a **judge copilot** phase.
+
+### The key architecture decision
+
+For this phase, the correct primary implementation path is:
+
+- Laravel AI SDK first
+
+Not:
+
+- Laravel MCP first
+
+Why:
+
+- AI SDK is for building the in-app agent experience
+- it gives us agent classes, conversations, tools, structured output, files, and provider abstraction directly in the Laravel app
+- MCP is more relevant when we want external AI clients to talk to Negadras as a tool-enabled server
+
+So the Phase 7 rewrite now treats MCP as a later integration option, not the first delivery mechanism.
+
+### Local source that informed the rewrite
+
+- [AISdk.md](/Users/yonassayfu/Herd/Negadras/Negadras/AISdk.md)
+
+The most important capabilities from that document for Negadras are:
+
+```php
+composer require laravel/ai
+php artisan vendor:publish --provider="Laravel\Ai\AiServiceProvider"
+php artisan migrate
+```
+
+and:
+
+```php
+class SalesCoach implements Agent, Conversational, HasTools
+{
+    use Promptable;
+}
+```
+
+and:
+
+```php
+class SalesCoach implements Agent, Conversational
+{
+    use Promptable, RemembersConversations;
+}
+```
+
+Those features map directly to the Negadras judge-copilot need:
+
+- one agent class per copilot role
+- stored conversations
+- tool-driven retrieval and research
+- model/provider abstraction
+
+### What the rewrite changes conceptually
+
+Before the rewrite, Phase 7 was framed as:
+
+- generate some AI summaries
+- add some risk flags
+
+After the rewrite, Phase 7 is framed as:
+
+1. AI foundation
+2. submission asset ingestion
+3. judge copilot chat
+4. grounded retrieval and web research
+5. advisory insights and flags
+6. draft feedback assistance
+7. governance and testing
+
+That is a much better sequence because chat quality depends on ingestion and grounding first.
+
+### Why grounding must come before chat
+
+The risky mistake would be:
+
+- add a nice judge chat UI first
+- let it answer from a general model
+
+That would create vague, ungrounded responses.
+
+The correct order is:
+
+```text
+submission assets -> retrieval context -> chat agent -> advisory answers
+```
+
+For Negadras, the AI should answer from:
+
+- uploaded PDF and documents
+- submission narrative fields
+- uploaded images
+- transcribed audio/video
+- optionally external research with explicit labeling
+
+### Why one copilot is better than many agents at first
+
+You mentioned that the AI should behave like different professional consultants.
+
+That is valid, but the first version should still start with one core agent:
+
+- `JudgeSubmissionCopilot`
+
+Then expose different analysis modes or prompt frames inside that agent:
+
+- market view
+- finance-risk view
+- product/innovation view
+- legal/compliance caution view
+
+That is simpler than building many parallel agents too early, and it avoids fragmenting the conversation history.
+
+### Why external research must be treated carefully
+
+You also want the judge to ask for:
+
+- latest update
+- news
+- external resources
+- suggestions
+
+That can be useful, but it introduces a trust boundary.
+
+So the roadmap now separates:
+
+- internal grounded facts
+- external web findings
+
+And it requires:
+
+- source labels
+- logging
+- explicit advisory wording
+
+That is important because a judge must know whether the answer came from:
+
+- the competitor's own material
+- or external public sources
+
+### New database direction
+
+The rewrite now intentionally uses both:
+
+- Laravel AI SDK conversation tables
+  - `agent_conversations`
+  - `agent_conversation_messages`
+- Negadras-specific AI tables
+  - `submission_ai_assets`
+  - `submission_ai_analyses`
+  - `submission_ai_source_references`
+  - `submission_ai_risk_flags`
+
+Why both are needed:
+
+- the SDK tables solve generic conversation persistence
+- Negadras still needs submission-scoped asset and analysis records
+
+### Practical Negadras result of the rewrite
+
+Phase 7 is now clear enough to build professionally:
+
+- install Laravel AI SDK
+- create the judge copilot foundation
+- ground it on real submission assets
+- add judge chat UI
+- add advisory insights and risk flags
+- keep AI clearly separate from official scoring authority
+
+This is a much stronger and safer Phase 7 than the original generic AI checklist.
